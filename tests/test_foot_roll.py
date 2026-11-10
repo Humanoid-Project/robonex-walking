@@ -1,6 +1,7 @@
 import ast
 import json
 import math
+import os
 import unittest
 from pathlib import Path
 
@@ -8,7 +9,8 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "source/robonex_walking/robonex_walking/tasks/manager_based/robonex_walking"
-SCAN = ROOT / "etc/diag/2026-09-27_ver2_ankle_limits/ankle_workspace_l.json"
+DATA = Path(os.environ.get("HUMANOID_DATA", Path.home() / ".agents/departments/humanoid/data"))
+SCAN = DATA / "analysis/walking-etc/diag/2026-09-27_ver2_ankle_limits/ankle_workspace_l.json"
 
 
 def load_functions(path, names, namespace):
