@@ -76,6 +76,39 @@ class ExportSceneTests(unittest.TestCase):
         self.assertIsNone(self.export.description_model_warning(None, "ver2/mujoco/robot/edu/scene.xml"))
         self.assertIsNone(self.export.description_model_warning("ver2/mujoco/robot/edu/scene.xml", None))
 
+    def test_a_previous_ver2_run_needs_the_previous_description(self):
+        previous = self.export.PREVIOUS_VER2_BUNDLE_SHA256
+        run = self.run_env("2026-11-14_23-59-00_W170s43_v2_edu_x_s43", "ver2")
+        self.export.check_description_bundle(run, previous)
+        with self.assertRaisesRegex(SystemExit, r"previous ver2 \(Ver.2-3, 25.567 kg\).*6c0409b.*desc-ver2-3-old"):
+            self.export.check_description_bundle(run, "0" * 64)
+
+    def test_a_ver2_3_path_needs_the_previous_description(self):
+        run = self.run_env("2026-10-27_14-09-53_W156s44_v2_3_edu_ds60_s44", "ver2-3")
+        self.export.check_description_bundle(run, self.export.PREVIOUS_VER2_BUNDLE_SHA256)
+        with self.assertRaisesRegex(SystemExit, "previous ver2"):
+            self.export.check_description_bundle(run, "0" * 64)
+
+    def test_a_current_ver2_run_refuses_the_previous_description(self):
+        run = self.run_env("2026-11-15_00-00-00_W180s43_v2_edu_x_s43", "ver2")
+        self.export.check_description_bundle(run, "0" * 64)
+        with self.assertRaisesRegex(SystemExit, "is the previous model"):
+            self.export.check_description_bundle(run, self.export.PREVIOUS_VER2_BUNDLE_SHA256)
+
+    def test_an_unknown_model_skips_the_bundle_check(self):
+        run = self.saved_env("usd_path: other\n")
+        self.export.check_description_bundle(run, "0" * 64)
+        self.export.check_description_bundle(run, self.export.PREVIOUS_VER2_BUNDLE_SHA256)
+
+    def test_a_run_before_the_rename_is_still_refused(self):
+        run = self.run_env("2026-11-01_23-59-59_W160s43_v2_edu_x_s43", "ver2")
+        with self.assertRaisesRegex(SystemExit, "old ver2"):
+            self.export.trained_description_model(run)
+
+    def test_the_bundle_check_runs_before_the_manifest_is_saved(self):
+        text = EXPORT.read_text()
+        self.assertLess(text.index("check_description_bundle(saved_env, description_sha256)"), text.index("contract.save(output)"))
+
     def test_the_warning_goes_to_stderr(self):
         self.assertIn("print(warning, file=sys.stderr)", EXPORT.read_text())
 

@@ -26,6 +26,35 @@ DESCRIPTION_MODELS = {"ver2_edu": "ver2/mujoco/robot/edu/scene.xml"}
 SCENE_BY_TRAINED_MODEL = {"/ver2-3/": "ver2/mujoco/robot/edu/scene.xml", "/ver2/": "ver2/mujoco/robot/edu/scene.xml"}
 RETIRED_TRAINED_MODELS = ("/ver2-2/",)
 CURRENT_VER2_FROM_RUN_DATE = "2026-11-02"
+VER2_4_FROM_RUN_DATE = "2026-11-15"
+PREVIOUS_VER2_BUNDLE_SHA256 = "61b6d3f93bc5cf9f4f9f78df432af598f56fe10854abe6dbf56a3dc4ee1ef0d2"
+PREVIOUS_VER2_EXAMPLE_ROOT = "/home/polygon/humanoid_project/worktrees/desc-ver2-3-old"
+
+
+def trained_on_previous_ver2(saved_env):
+    text = saved_env.read_text()
+    if "robonex-description/ver2-3/" in text:
+        return True
+    if "robonex-description/ver2/" in text:
+        return saved_env.parent.parent.name[:10] < VER2_4_FROM_RUN_DATE
+    return None
+
+
+def check_description_bundle(saved_env, bundle_sha256):
+    previous = trained_on_previous_ver2(saved_env)
+    if previous is True and bundle_sha256 != PREVIOUS_VER2_BUNDLE_SHA256:
+        raise SystemExit(
+            f"{saved_env}: the run was trained on the previous ver2 (Ver.2-3, 25.567 kg), but the description "
+            f"checkout has bundle sha256 {bundle_sha256}, not {PREVIOUS_VER2_BUNDLE_SHA256}; pass --description-root "
+            f"or ROBONEX_DESCRIPTION_ROOT pointing at a checkout of robonex-description 6c0409b "
+            f"(e.g. {PREVIOUS_VER2_EXAMPLE_ROOT})"
+        )
+    if previous is False and bundle_sha256 == PREVIOUS_VER2_BUNDLE_SHA256:
+        raise SystemExit(
+            f"{saved_env}: the run was trained on the current ver2 (Ver.2-4), but the description checkout is the "
+            "previous model (Ver.2-3, 25.567 kg); pass --description-root or ROBONEX_DESCRIPTION_ROOT pointing at "
+            "the current robonex-description"
+        )
 
 
 def trained_description_model(saved_env):
@@ -293,6 +322,9 @@ def main():
         args.description_model = trained
         print(f"description model: {trained} (the model the checkpoint was trained on)")
     args.description_model = args.description_model or DESCRIPTION_MODELS[args.robot_model]
+    description_sha256 = mujoco_bundle_sha256(description_root, args.description_model)
+    if args.description_model == trained:
+        check_description_bundle(saved_env, description_sha256)
     pose_task = TASKS[args.robot_model] if pose == "home" else POSE_TASKS[(args.robot_model, pose)]
     if args.task is not None and args.task != pose_task and (pose != "home" or args.task in POSE_TASKS.values()):
         raise SystemExit(f"--task {args.task}, but the checkpoint was trained with action pose {pose!r} ({pose_task})")
@@ -311,7 +343,7 @@ def main():
         task=args.task,
         policy_file=os.path.relpath(policy, output.parent),
         policy_sha256=sha256_file(policy),
-        description_sha256=mujoco_bundle_sha256(description_root, args.description_model),
+        description_sha256=description_sha256,
         common_sha256=python_source_sha256(common_root, ("src/robonex_common",)),
         training_sha256=python_source_sha256(training_root, ("source", "scripts")),
         description_model=args.description_model,
