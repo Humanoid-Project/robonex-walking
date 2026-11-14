@@ -102,7 +102,11 @@ class ExportSceneTests(unittest.TestCase):
             self.export.check_description_bundle(run, self.export.PREVIOUS_VER2_BUNDLE_SHA256, previous=False)
 
     def test_main_checks_the_bundle_as_the_current_model(self):
-        self.assertIn("check_description_bundle(saved_env, description_sha256, previous=False)", EXPORT.read_text())
+        self.assertIn("check_description_bundle(saved_env, description_sha256, previous=False if new_pose else None)", EXPORT.read_text())
+
+    def test_the_current_model_shortcut_needs_the_new_pose_common(self):
+        from robonex_common.joints import DEFAULT_JOINT_POS
+        self.assertEqual(DEFAULT_JOINT_POS["l_knee_pitch_joint"], self.export.CURRENT_POSE_KNEE_CRANK)
 
     def test_an_unknown_model_skips_the_bundle_check(self):
         run = self.saved_env("usd_path: other\n")
@@ -116,7 +120,7 @@ class ExportSceneTests(unittest.TestCase):
 
     def test_the_bundle_check_runs_before_the_manifest_is_saved(self):
         text = EXPORT.read_text()
-        self.assertLess(text.index("check_description_bundle(saved_env, description_sha256, previous=False)"), text.index("contract.save(output)"))
+        self.assertLess(text.index("check_description_bundle(saved_env, description_sha256, previous=False if new_pose else None)"), text.index("contract.save(output)"))
 
     def test_the_warning_goes_to_stderr(self):
         self.assertIn("print(warning, file=sys.stderr)", EXPORT.read_text())

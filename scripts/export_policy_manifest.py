@@ -3,7 +3,7 @@ import os
 import sys
 from pathlib import Path
 
-from robonex_common.joints import POLICY_JOINT_ORDER
+from robonex_common.joints import DEFAULT_JOINT_POS, POLICY_JOINT_ORDER
 from robonex_common.limits import RUNNER_ACTION_CLIP, action_normalization
 from robonex_common.models import robot_model
 from robonex_common.runtime import (
@@ -27,6 +27,7 @@ SCENE_BY_TRAINED_MODEL = {"/ver2-3/": "ver2/mujoco/robot/edu/scene.xml", "/ver2/
 RETIRED_TRAINED_MODELS = ("/ver2-2/",)
 CURRENT_VER2_FROM_RUN_DATE = "2026-11-02"
 VER2_4_FROM_RUN_DATE = "2026-11-15"
+CURRENT_POSE_KNEE_CRANK = -0.3961936767101065
 PREVIOUS_VER2_BUNDLE_SHA256 = "61b6d3f93bc5cf9f4f9f78df432af598f56fe10854abe6dbf56a3dc4ee1ef0d2"
 PREVIOUS_VER2_EXAMPLE_ROOT = "/home/polygon/humanoid_project/worktrees/desc-ver2-3-old"
 
@@ -325,7 +326,8 @@ def main():
     args.description_model = args.description_model or DESCRIPTION_MODELS[args.robot_model]
     description_sha256 = mujoco_bundle_sha256(description_root, args.description_model)
     if args.description_model == trained:
-        check_description_bundle(saved_env, description_sha256, previous=False)
+        new_pose = abs(DEFAULT_JOINT_POS["l_knee_pitch_joint"] - CURRENT_POSE_KNEE_CRANK) < 1e-12
+        check_description_bundle(saved_env, description_sha256, previous=False if new_pose else None)
     pose_task = TASKS[args.robot_model] if pose == "home" else POSE_TASKS[(args.robot_model, pose)]
     if args.task is not None and args.task != pose_task and (pose != "home" or args.task in POSE_TASKS.values()):
         raise SystemExit(f"--task {args.task}, but the checkpoint was trained with action pose {pose!r} ({pose_task})")
