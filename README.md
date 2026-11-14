@@ -141,7 +141,7 @@ flowchart LR
 | | `feet_contact_force` · `-1.0` | 평균 접지력 `373.9 N` 초과분 억제(착지 충격) |
 | 정지 | `stand_still` · `-2.0`, `stand_still_pose` · `-1.0` | 정지 명령에서 양발 지지와 기준 자세 유지 |
 | | `stand_hip_roll_load` · `-0.2` | 정지 중 hip roll 토크 부하 억제(발열 대응) |
-| 자세 | `flat_orientation` · `-1.0`, `base_height` · `-0.3` | roll·pitch 기울기 억제, 몸체 높이 `0.942 m` 유지 |
+| 자세 | `flat_orientation` · `-1.0`, `base_height` · `-0.3` | roll·pitch 기울기 억제, 몸체 높이 `0.940 m` 유지 |
 | | `lin_vel_z` · `-0.1`, `ang_vel_xy` · `-0.1` | 상하 진동과 roll·pitch 흔들림 억제 |
 | | `com_forward_margin` · `-0.5` | 무게중심이 양발 중심보다 `0.055 m` 앞에 오도록 유도(뒤로 넘어짐 방지) |
 | | `joint_deviation_yaw_roll` · `-0.2` | hip yaw·roll 관절의 기준 자세 이탈 억제 |
