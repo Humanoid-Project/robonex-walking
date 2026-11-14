@@ -95,6 +95,15 @@ class ExportSceneTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "is the previous model"):
             self.export.check_description_bundle(run, self.export.PREVIOUS_VER2_BUNDLE_SHA256)
 
+    def test_an_exported_run_is_checked_as_the_current_model(self):
+        run = self.run_env("2026-11-14_23-00-00_W200s43_v2_edu_x_s43", "ver2")
+        self.export.check_description_bundle(run, "0" * 64, previous=False)
+        with self.assertRaisesRegex(SystemExit, "is the previous model"):
+            self.export.check_description_bundle(run, self.export.PREVIOUS_VER2_BUNDLE_SHA256, previous=False)
+
+    def test_main_checks_the_bundle_as_the_current_model(self):
+        self.assertIn("check_description_bundle(saved_env, description_sha256, previous=False)", EXPORT.read_text())
+
     def test_an_unknown_model_skips_the_bundle_check(self):
         run = self.saved_env("usd_path: other\n")
         self.export.check_description_bundle(run, "0" * 64)
@@ -107,7 +116,7 @@ class ExportSceneTests(unittest.TestCase):
 
     def test_the_bundle_check_runs_before_the_manifest_is_saved(self):
         text = EXPORT.read_text()
-        self.assertLess(text.index("check_description_bundle(saved_env, description_sha256)"), text.index("contract.save(output)"))
+        self.assertLess(text.index("check_description_bundle(saved_env, description_sha256, previous=False)"), text.index("contract.save(output)"))
 
     def test_the_warning_goes_to_stderr(self):
         self.assertIn("print(warning, file=sys.stderr)", EXPORT.read_text())

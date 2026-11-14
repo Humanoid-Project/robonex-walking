@@ -40,8 +40,9 @@ def trained_on_previous_ver2(saved_env):
     return None
 
 
-def check_description_bundle(saved_env, bundle_sha256):
-    previous = trained_on_previous_ver2(saved_env)
+def check_description_bundle(saved_env, bundle_sha256, previous=None):
+    if previous is None:
+        previous = trained_on_previous_ver2(saved_env)
     if previous is True and bundle_sha256 != PREVIOUS_VER2_BUNDLE_SHA256:
         raise SystemExit(
             f"{saved_env}: the run was trained on the previous ver2 (Ver.2-3, 25.567 kg), but the description "
@@ -324,7 +325,7 @@ def main():
     args.description_model = args.description_model or DESCRIPTION_MODELS[args.robot_model]
     description_sha256 = mujoco_bundle_sha256(description_root, args.description_model)
     if args.description_model == trained:
-        check_description_bundle(saved_env, description_sha256)
+        check_description_bundle(saved_env, description_sha256, previous=False)
     pose_task = TASKS[args.robot_model] if pose == "home" else POSE_TASKS[(args.robot_model, pose)]
     if args.task is not None and args.task != pose_task and (pose != "home" or args.task in POSE_TASKS.values()):
         raise SystemExit(f"--task {args.task}, but the checkpoint was trained with action pose {pose!r} ({pose_task})")

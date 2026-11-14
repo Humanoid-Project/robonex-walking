@@ -5,6 +5,7 @@ from pathlib import Path
 from robonex_common.actuators import ACTUATOR_PARAMETERS
 from robonex_common.joints import ACTUATED_JOINTS
 from robonex_common.limits import DEFAULT_ACTION_MARGIN_RAD, RUNNER_ACTION_CLIP, MAX_ACTION_SCALE_RAD, ACTION_REACH_SIGMA
+from robonex_common.limits import action_normalization as common_action_normalization
 from robonex_common.models import action_pose as common_action_pose
 from robonex_common.motors import RATED_TORQUE
 from robonex_common.paths import DESCRIPTION_REPO_NAMES, repo_file
@@ -92,6 +93,15 @@ def action_normalization(margin=DEFAULT_ACTION_MARGIN_RAD):
 
 
 ACTION_OFFSETS, ACTION_SCALES, ACTION_CLIPS = action_normalization(0.01)
+_COMMON_OFFSETS, _COMMON_SCALES, _COMMON_CLIPS = common_action_normalization(0.01, model="ver2_edu")
+for _name in LEG_JOINTS:
+    if (abs(ACTION_OFFSETS[_name] - _COMMON_OFFSETS[_name]) > 1e-9
+            or abs(ACTION_SCALES[_name] - _COMMON_SCALES[_name]) > 1e-9
+            or max(abs(a - b) for a, b in zip(ACTION_CLIPS[_name], _COMMON_CLIPS[_name])) > 1e-9):
+        raise RuntimeError(
+            f"{_name}: the description constants ({CONSTANTS_PATH}) and the installed robonex-common disagree on the "
+            f"action contract (offset/scale/clip {ACTION_OFFSETS[_name]}, {ACTION_SCALES[_name]}, {ACTION_CLIPS[_name]} "
+            f"vs {_COMMON_OFFSETS[_name]}, {_COMMON_SCALES[_name]}, {tuple(_COMMON_CLIPS[_name])})")
 
 
 def pose_contract(pose, variant="edu"):
