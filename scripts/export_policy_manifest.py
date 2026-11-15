@@ -7,9 +7,8 @@ from robonex_common.joints import DEFAULT_JOINT_POS, POLICY_JOINT_ORDER
 from robonex_common.limits import RUNNER_ACTION_CLIP, action_normalization
 from robonex_common.models import robot_model
 from robonex_common.runtime import (
-    OBSERVATION_HISTORY_LENGTH,
     ACTION_SIZE,
-    OBSERVATION_SIZE,
+    OBSERVATION_FRAME_SIZE,
     OBSERVATION_TERM_SIZES,
 )
 from robonex_common.paths import COMMON_REPO_NAMES, DESCRIPTION_REPO_NAMES, git_commit, resolve_repo
@@ -207,6 +206,76 @@ def saved_action_pose(saved_env):
     return str((yaml.load(saved_env.read_text(), Loader=Loader) or {}).get("action_pose") or "home")
 
 
+SAVED_POLICY_TERM_NAMES = {"actions": "last_action"}
+OBSERVATION_GROUP_FIELDS = ("concatenate_terms", "concatenate_dim", "enable_corruption", "history_length", "flatten_history_dim")
+
+
+def saved_policy_history(saved_env):
+    import yaml
+
+    class Loader(yaml.SafeLoader):
+        pass
+
+    Loader.add_constructor("tag:yaml.org,2002:python/tuple", lambda loader, node: tuple(loader.construct_sequence(node)))
+    Loader.add_multi_constructor("", lambda loader, suffix, node: None)
+    cfg = yaml.load(saved_env.read_text(), Loader=Loader) or {}
+    policy = (cfg.get("observations") or {}).get("policy")
+    if not isinstance(policy, dict):
+        raise SystemExit(f"{saved_env}: no observations.policy group; the history length cannot be read from the run")
+    terms = [(name, value) for name, value in policy.items() if name not in OBSERVATION_GROUP_FIELDS and value is not None]
+    names = tuple(SAVED_POLICY_TERM_NAMES.get(name, name) for name, _ in terms)
+    wanted = tuple(name for name, _ in OBSERVATION_TERM_SIZES)
+    if names != wanted:
+        raise SystemExit(f"{saved_env}: policy observation terms {list(names)}, but robonex-common assembles {list(wanted)}")
+    group = policy.get("history_length")
+    histories = set()
+    for name, term in terms:
+        history = group if group is not None else (term or {}).get("history_length", 0)
+        flatten = policy.get("flatten_history_dim", True) if group is not None else (term or {}).get("flatten_history_dim", True)
+        history = int(history or 0)
+        if history < 0:
+            raise SystemExit(f"{saved_env}: policy term {name} has history_length {history}")
+        if history > 0 and not flatten:
+            raise SystemExit(f"{saved_env}: policy term {name} keeps an unflattened history; the deploy layout needs a flat vector")
+        histories.add(max(history, 1))
+    if len(histories) != 1:
+        raise SystemExit(f"{saved_env}: policy terms use different history lengths {sorted(histories)}; deploy needs one")
+    return histories.pop()
+
+
+def onnx_input_width(policy):
+    try:
+        import onnx
+    except ImportError:
+        onnx = None
+    if onnx is not None:
+        model = onnx.load(str(policy), load_external_data=False)
+        initializers = {item.name for item in model.graph.initializer}
+        inputs = [item for item in model.graph.input if item.name not in initializers]
+        if len(inputs) != 1:
+            raise SystemExit(f"{policy}: expected one ONNX input, found {len(inputs)}")
+        dims = inputs[0].type.tensor_type.shape.dim
+        return int(dims[-1].dim_value) if dims and dims[-1].HasField("dim_value") else None
+    try:
+        import onnxruntime
+    except ImportError:
+        raise SystemExit(f"{policy}: neither onnx nor onnxruntime is installed; the ONNX input width cannot be checked")
+    inputs = onnxruntime.InferenceSession(str(policy), providers=["CPUExecutionProvider"]).get_inputs()
+    if len(inputs) != 1:
+        raise SystemExit(f"{policy}: expected one ONNX input, found {len(inputs)}")
+    width = inputs[0].shape[-1] if inputs[0].shape else None
+    return width if isinstance(width, int) else None
+
+
+def check_onnx_width(policy, observation_size):
+    width = onnx_input_width(policy)
+    if width != observation_size:
+        raise SystemExit(
+            f"{policy}: ONNX input width {width}, but the run's policy observation is {observation_size} "
+            f"({OBSERVATION_FRAME_SIZE} x history); export the ONNX from this run's checkpoint"
+        )
+
+
 def infer_robot_model(saved_env, offsets, scales, clips, tolerance=1.0e-9):
     from robonex_common.models import ACTION_POSES, ROBOT_MODELS
 
@@ -332,6 +401,10 @@ def main():
     if args.task is not None and args.task != pose_task and (pose != "home" or args.task in POSE_TASKS.values()):
         raise SystemExit(f"--task {args.task}, but the checkpoint was trained with action pose {pose!r} ({pose_task})")
     args.task = args.task or pose_task
+    history_length = saved_policy_history(saved_env)
+    observation_size = OBSERVATION_FRAME_SIZE * history_length
+    check_onnx_width(policy, observation_size)
+    print(f"observation history: {history_length} (from {saved_env}), observation_size {observation_size}")
 
     roll = robot_model(args.robot_model).foot_roll
     roll_fields = dict(
@@ -352,13 +425,13 @@ def main():
         description_model=args.description_model,
         joint_order=POLICY_JOINT_ORDER,
         observation_terms=tuple(
-            f"{name}:{size}x{OBSERVATION_HISTORY_LENGTH}" for name, size in OBSERVATION_TERM_SIZES
+            f"{name}:{size}x{history_length}" for name, size in OBSERVATION_TERM_SIZES
         ),
         action_offsets=tuple(offsets[name] for name in POLICY_JOINT_ORDER),
         action_scales=tuple(scales[name] for name in POLICY_JOINT_ORDER),
         target_clips=tuple(clips[name] for name in POLICY_JOINT_ORDER),
         runner_action_clip=RUNNER_ACTION_CLIP,
-        observation_size=OBSERVATION_SIZE,
+        observation_size=observation_size,
         action_size=ACTION_SIZE,
         policy_hz=policy_hz,
         description_commit=git_commit(description_root),
