@@ -18,7 +18,7 @@ EXTENSION_TOML_DATA = toml.load(os.path.join(EXTENSION_PATH, "config", "extensio
 # Minimum dependencies required prior to installation
 INSTALL_REQUIRES = [
     "psutil",
-    "robonex-common @ git+https://github.com/Humanoid-Project/robonex-common.git@v2.1.0",
+    "robonex-common @ git+https://github.com/Humanoid-Project/robonex-common.git@v2.2.0",
 ]
 
 # Installation operation

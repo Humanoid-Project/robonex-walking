@@ -293,7 +293,7 @@ def test_action_scales_resolve_in_action_order_and_reject_mismatch():
     by_name = SMOOTH_PPO.resolve_action_scales(manager, "joint_pos", dict(CONTRACT_V2.ACTION_SCALES))
     torch.testing.assert_close(live, by_name)
     assert live.tolist() == pytest.approx(
-        [0.25, 0.25, 0.25, 0.25, 0.148886, 0.148886, 0.186909, 0.186909, 0.211194, 0.169625, 0.211194, 0.169625]
+        [0.25, 0.25, 0.25, 0.25, 0.148886, 0.148886, 0.15782, 0.15782, 0.211194, 0.169625, 0.211194, 0.169625]
     )
     wrong = dict(CONTRACT_V2.ACTION_SCALES)
     wrong["l_knee_pitch_joint"] = 0.3
