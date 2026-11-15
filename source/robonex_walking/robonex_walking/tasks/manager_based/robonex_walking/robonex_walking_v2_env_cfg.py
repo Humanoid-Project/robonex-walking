@@ -812,3 +812,58 @@ class RoboNexWalkingV2EduEnvCfg(RoboNexWalkingV2EnvCfg):
 class RoboNexWalkingV2EduLean25EnvCfg(RoboNexWalkingV2EnvCfg):
     variant: str = "edu"
     action_pose: str = "lean25"
+
+
+@configclass
+class PrivilegedCriticCfg(ObservationsCfg.CriticCfg):
+    joint_pos_clean = ObsTerm(
+        func=mdp.joint_pos_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS)}
+    )
+    joint_vel_clean = ObsTerm(
+        func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS)}
+    )
+    base_ang_vel = ObsTerm(func=mdp.base_ang_vel)
+    projected_gravity_clean = ObsTerm(func=mdp.projected_gravity)
+    base_height_above_feet = ObsTerm(
+        func=mdp.base_height_above_feet,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=["l_foot", "r_foot"], preserve_order=True)},
+    )
+    foot_contact = ObsTerm(
+        func=mdp.foot_contact,
+        params={
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=["l_foot", "r_foot"], preserve_order=True),
+            "weight_n": 1.0,
+            "threshold_n": 20.0,
+        },
+    )
+    joint_friction = ObsTerm(
+        func=mdp.joint_friction, params={"asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS)}
+    )
+    foot_friction = ObsTerm(
+        func=mdp.foot_friction,
+        params={"asset_cfg": SceneEntityCfg("robot", body_names=["l_foot", "r_foot"], preserve_order=True)},
+    )
+    base_mass_delta = ObsTerm(
+        func=mdp.base_mass_delta, params={"asset_cfg": SceneEntityCfg("robot", body_names=["base_link"])}
+    )
+    base_com_offset = ObsTerm(
+        func=mdp.base_com_offset, params={"asset_cfg": SceneEntityCfg("robot", body_names=["base_link"])}
+    )
+    randomization_delays = ObsTerm(
+        func=mdp.randomization_delays, params={"imu_cfg": SceneEntityCfg("imu"), "action_name": "joint_pos"}
+    )
+    last_push = ObsTerm(func=mdp.last_push, params={"cap_s": 2.0})
+
+
+@configclass
+class PrivilegedObservationsCfg(ObservationsCfg):
+    critic: PrivilegedCriticCfg = PrivilegedCriticCfg()
+
+
+@configclass
+class RoboNexWalkingV2EduPrivCriticEnvCfg(RoboNexWalkingV2EduEnvCfg):
+    observations: PrivilegedObservationsCfg = PrivilegedObservationsCfg()
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        self.observations.critic.foot_contact.params["weight_n"] = round(VARIANT_MASS_KG[self.variant] * GRAVITY, 1)

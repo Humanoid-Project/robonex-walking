@@ -205,11 +205,26 @@ def _mark_sway_push(env, env_ids):
     env._sway_last_push_step[env_ids] = env.common_step_counter
 
 
+def _record_push(env, env_ids, before, asset_cfg):
+    if not hasattr(env, "_last_push_dv"):
+        env._last_push_dv = torch.zeros(env.num_envs, 2, device=env.device)
+        env._last_push_step = torch.full((env.num_envs,), -1, dtype=torch.long, device=env.device)
+    if len(env_ids) == 0:
+        return
+    asset: Articulation = env.scene[asset_cfg.name]
+    dv = asset.data.root_vel_w[env_ids, :3] - before
+    local = quat_apply_inverse(yaw_quat(asset.data.root_quat_w[env_ids]), dv)
+    env._last_push_dv[env_ids] = local[:, :2]
+    env._last_push_step[env_ids] = env.common_step_counter
+
+
 def push_robot_with_sway_marker(
     env, env_ids, velocity_range,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ):
+    before = env.scene[asset_cfg.name].data.root_vel_w[env_ids, :3]
     _push_by_setting_velocity(env, env_ids, velocity_range, asset_cfg)
+    _record_push(env, env_ids, before, asset_cfg)
     _mark_sway_push(env, env_ids)
 
 
@@ -221,9 +236,11 @@ def push_standing_with_sway_marker(
 ):
     command = env.command_manager.get_command(command_name)[env_ids]
     standing = env_ids[torch.linalg.norm(command, dim=1) < command_deadband]
+    before = env.scene[asset_cfg.name].data.root_vel_w[standing, :3]
     _push_standing_by_setting_velocity(
         env, env_ids, velocity_range, command_name, command_deadband, asset_cfg
     )
+    _record_push(env, standing, before, asset_cfg)
     _mark_sway_push(env, standing)
 
 

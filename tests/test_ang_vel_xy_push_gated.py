@@ -19,10 +19,11 @@ class Base:
 
 def load():
     tree = ast.parse(REWARDS.read_text())
-    names = {"_bounded_square", "_saturate", "_mark_sway_push", "push_robot_with_sway_marker",
+    names = {"_bounded_square", "_saturate", "_mark_sway_push", "_record_push", "push_robot_with_sway_marker",
              "push_standing_with_sway_marker", "ang_vel_xy_push_gated"}
     nodes = [n for n in tree.body if getattr(n, "name", None) in names]
-    ns = {"torch": torch, "math": math, "ManagerTermBase": Base,
+    ns = {"torch": torch, "math": math, "ManagerTermBase": Base, "Articulation": object,
+          "quat_apply_inverse": lambda q, v: v, "yaw_quat": lambda q: q,
           "SceneEntityCfg": lambda name: types.SimpleNamespace(name=name)}
     exec(compile(ast.Module(body=nodes, type_ignores=[]), "rewards", "exec"), ns)
     return ns
@@ -37,7 +38,8 @@ class Env:
         self.commands = torch.tensor([[0.0, 0.0, 0.0], [0.1, 0.0, 0.0], [0.0, 0.0, 0.0]])
         self.command_manager = types.SimpleNamespace(get_command=lambda name: self.commands)
         self.rates = torch.tensor([[1.0, 0.0, 0.0], [0.5, 0.0, 0.0], [0.0, 4.0, 3.0]])
-        self.scene = {"robot": types.SimpleNamespace(data=types.SimpleNamespace(root_ang_vel_b=self.rates))}
+        self.scene = {"robot": types.SimpleNamespace(data=types.SimpleNamespace(
+            root_ang_vel_b=self.rates, root_vel_w=torch.zeros(3, 6), root_quat_w=torch.zeros(3, 4)))}
 
 
 class AngVelXYPushGatedTest(unittest.TestCase):

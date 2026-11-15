@@ -20,9 +20,23 @@ _VECTOR_SIGNS = {
     "velocity_commands": (1.0, -1.0, -1.0),
     "gait_phase": (-1.0, -1.0),
     "base_lin_vel": (1.0, -1.0, 1.0),
+    "base_ang_vel": (-1.0, 1.0, -1.0),
+    "projected_gravity_clean": (1.0, -1.0, 1.0),
+    "base_height_above_feet": (1.0,),
+    "base_mass_delta": (1.0,),
+    "base_com_offset": (1.0, -1.0, 1.0),
+    "randomization_delays": (1.0, 1.0, 1.0),
+    "last_push": (1.0, -1.0, 1.0),
 }
 
-_JOINT_TERMS = ("joint_pos_rel", "joint_vel_rel", "actions")
+_JOINT_TERMS = ("joint_pos_rel", "joint_vel_rel", "actions", "joint_pos_clean", "joint_vel_clean")
+
+_JOINT_MAGNITUDE_TERMS = ("joint_friction",)
+
+_FOOT_PAIR_TERMS = {
+    "foot_contact": (1, 0, 3, 2),
+    "foot_friction": (1, 0, 3, 2),
+}
 
 
 def _mirror_name(name: str) -> str:
@@ -78,35 +92,54 @@ def _check_joint_term_order(env: ManagerBasedRLEnv, group: str, term: str) -> No
         )
 
 
-def _group_layout(env: ManagerBasedRLEnv, group: str, perm: torch.Tensor) -> list[tuple[slice, torch.Tensor]]:
+def _check_pair_order(env: ManagerBasedRLEnv, group: str, term: str) -> None:
+    cfgs = env.observation_manager._group_obs_term_cfgs[group]
+    names = env.observation_manager.active_terms[group]
+    params = cfgs[names.index(term)].params
+    entity = params.get("asset_cfg", params.get("sensor_cfg"))
+    bodies = list(getattr(entity, "body_names", None) or [])
+    if len(bodies) != 2 or not bodies[0].startswith("l_") or bodies[1] != _mirror_name(bodies[0]):
+        raise RuntimeError(f"observation term {term!r} must list its bodies as [l_*, r_*], got {bodies}")
+    if not getattr(entity, "preserve_order", False):
+        raise RuntimeError(f"observation term {term!r} needs preserve_order=True so its slots follow [l_*, r_*]")
+
+
+def _group_layout(env: ManagerBasedRLEnv, group: str, perm: torch.Tensor):
     manager = env.observation_manager
     terms = manager.active_terms[group]
     dims = [int(d[0]) for d in manager.group_obs_term_dim[group]]
     history = manager._group_obs_term_cfgs[group][0].history_length or 1
-    blocks: list[tuple[slice, torch.Tensor]] = []
+    blocks: list[tuple[slice, torch.Tensor, torch.Tensor]] = []
     cursor = 0
     for name, width in zip(terms, dims):
         if width % history:
             raise RuntimeError(f"term {name!r} width {width} is not a multiple of history {history}")
         frame = width // history
-        if name in _JOINT_TERMS:
+        if name in _JOINT_TERMS or name in _JOINT_MAGNITUDE_TERMS:
             if frame != perm.numel():
                 raise RuntimeError(f"term {name!r} frame dim {frame}, expected {perm.numel()} joints")
             _check_joint_term_order(env, group, name)
-            base = perm
+            index = perm
+            sign = torch.full((frame,), -1.0 if name in _JOINT_TERMS else 1.0, device=env.device)
         elif name in _VECTOR_SIGNS:
-            base = torch.tensor(_VECTOR_SIGNS[name], dtype=torch.float32, device=env.device)
-            if base.numel() != frame:
-                raise RuntimeError(f"term {name!r} frame dim {frame}, sign map has {base.numel()}")
+            sign = torch.tensor(_VECTOR_SIGNS[name], dtype=torch.float32, device=env.device)
+            if sign.numel() != frame:
+                raise RuntimeError(f"term {name!r} frame dim {frame}, sign map has {sign.numel()}")
+            index = torch.arange(frame, device=env.device)
+        elif name in _FOOT_PAIR_TERMS:
+            index = torch.tensor(_FOOT_PAIR_TERMS[name], dtype=torch.long, device=env.device)
+            if index.numel() != frame:
+                raise RuntimeError(f"term {name!r} frame dim {frame}, pair map has {index.numel()}")
+            _check_pair_order(env, group, name)
+            sign = torch.ones(frame, device=env.device)
         else:
             raise RuntimeError(f"observation term {name!r} has no mirror rule")
-        blocks.append((slice(cursor, cursor + width), base))
+        blocks.append((slice(cursor, cursor + width), index, sign))
         cursor += width
     total = manager.group_obs_dim[group][0]
     if cursor != total:
         raise RuntimeError(f"group {group!r} layout covers {cursor} of {total} values")
-    blocks.append((slice(0, 0), torch.tensor(float(history), device=env.device)))
-    return blocks
+    return blocks, history
 
 
 def _layout(env: ManagerBasedRLEnv) -> dict:
@@ -115,9 +148,7 @@ def _layout(env: ManagerBasedRLEnv) -> dict:
         perm = _joint_permutation(env)
         groups = {}
         for group in env.observation_manager.active_terms:
-            blocks = _group_layout(env, group, perm)
-            history = int(blocks.pop()[1].item())
-            groups[group] = (blocks, history)
+            groups[group] = _group_layout(env, group, perm)
         names = list(env.action_manager.get_term("joint_pos")._joint_names)
         pairs = ", ".join(f"{names[i]}->-{names[j]}" for i, j in enumerate(perm.tolist()))
         print(f"[symmetry] mirror map resolved: {pairs}", flush=True)
@@ -129,14 +160,10 @@ def _layout(env: ManagerBasedRLEnv) -> dict:
 
 def _mirror_group(obs: torch.Tensor, blocks, history: int, perm: torch.Tensor) -> torch.Tensor:
     out = obs.clone()
-    for span, rule in blocks:
+    for span, index, sign in blocks:
         chunk = out[:, span]
-        if rule.dtype == torch.long:
-            view = chunk.view(chunk.shape[0], history, -1)
-            out[:, span] = (-view[:, :, rule]).reshape(chunk.shape)
-        else:
-            view = chunk.view(chunk.shape[0], history, -1)
-            out[:, span] = (view * rule).reshape(chunk.shape)
+        view = chunk.view(chunk.shape[0], history, -1)
+        out[:, span] = (view[:, :, index] * sign).reshape(chunk.shape)
     return out
 
 

@@ -202,3 +202,142 @@ class delayed_imu_projected_gravity_biased(ManagerTermBase):
         x2 = cp * x + sp * z1
         z2 = -sp * x + cp * z1
         return torch.stack([x2, y1, z2], dim=-1)
+
+
+def base_height_above_feet(env: ManagerBasedRLEnv, asset_cfg) -> torch.Tensor:
+    asset = env.scene[asset_cfg.name]
+    feet_z = asset.data.body_pos_w[:, asset_cfg.body_ids, 2]
+    return (asset.data.root_pos_w[:, 2] - feet_z.min(dim=1).values).unsqueeze(-1)
+
+
+def foot_contact(env: ManagerBasedRLEnv, sensor_cfg, weight_n: float, threshold_n: float = 20.0) -> torch.Tensor:
+    if weight_n <= 0 or threshold_n < 0:
+        raise ValueError("foot_contact needs weight_n > 0 and threshold_n >= 0")
+    normal = env.scene.sensors[sensor_cfg.name].data.net_forces_w[:, sensor_cfg.body_ids, 2].clamp(min=0.0)
+    return torch.cat([(normal > threshold_n).float(), normal / weight_n], dim=-1)
+
+
+def joint_friction(env: ManagerBasedRLEnv, asset_cfg) -> torch.Tensor:
+    return env.scene[asset_cfg.name].data.joint_dynamic_friction_coeff[:, asset_cfg.joint_ids]
+
+
+def randomization_delays(env: ManagerBasedRLEnv, imu_cfg, action_name: str = "joint_pos") -> torch.Tensor:
+    joint = getattr(env, "_joint_observation_delay", None)
+    if joint is None:
+        raise RuntimeError("no joint observation delay draw on the env; the policy group must use delayed_joint_state")
+    imu = env.scene[imu_cfg.name]._delay
+    actuation = env.action_manager.get_term(action_name)._delay_substeps
+    return torch.stack([joint.float(), imu.float(), actuation.float()], dim=-1)
+
+
+class last_push(ManagerTermBase):
+    def __init__(self, cfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        if float(cfg.params.get("cap_s", 2.0)) <= 0:
+            raise ValueError("last_push needs cap_s > 0")
+        if not hasattr(env, "_last_push_dv"):
+            env._last_push_dv = torch.zeros(env.num_envs, 2, device=env.device)
+            env._last_push_step = torch.full((env.num_envs,), -1, dtype=torch.long, device=env.device)
+
+    def reset(self, env_ids=None):
+        ids = slice(None) if env_ids is None else torch.as_tensor(env_ids, device=self.device)
+        self._env._last_push_dv[ids] = 0.0
+        self._env._last_push_step[ids] = -1
+
+    def __call__(self, env: ManagerBasedRLEnv, cap_s: float = 2.0):
+        step = env._last_push_step
+        age = ((env.common_step_counter - step).float() * env.step_dt).clamp(0.0, cap_s)
+        age = torch.where(step < 0, torch.full_like(age, cap_s), age)
+        return torch.cat([env._last_push_dv, age.unsqueeze(-1)], dim=-1)
+
+
+def _body_shape_ranges(asset) -> list[tuple[int, int]]:
+    counts = []
+    for link_path in asset.root_physx_view.link_paths[0]:
+        counts.append(asset._physics_sim_view.create_rigid_body_view(link_path).max_shapes)
+    if sum(counts) != asset.root_physx_view.max_shapes:
+        raise RuntimeError(f"shape count per body {counts} does not add up to {asset.root_physx_view.max_shapes}")
+    ranges, start = [], 0
+    for count in counts:
+        ranges.append((start, start + count))
+        start += count
+    return ranges
+
+
+class _EpisodeDraw(ManagerTermBase):
+    width = 0
+
+    def __init__(self, cfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        self._asset_cfg = cfg.params["asset_cfg"]
+        self._value = torch.zeros(env.num_envs, self.width, device=env.device)
+        self._dirty = torch.ones(env.num_envs, dtype=torch.bool, device=env.device)
+
+    def reset(self, env_ids=None):
+        if env_ids is None:
+            self._dirty[:] = True
+        else:
+            self._dirty[torch.as_tensor(env_ids, device=self.device)] = True
+
+    def _read(self, asset, env_ids_cpu: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+    def __call__(self, env: ManagerBasedRLEnv, asset_cfg):
+        if torch.any(self._dirty):
+            ids = self._dirty.nonzero(as_tuple=False).squeeze(-1)
+            asset = env.scene[asset_cfg.name]
+            self._value[ids] = self._read(asset, ids.cpu()).to(self._value.device, self._value.dtype)
+            self._dirty[ids] = False
+        return self._value
+
+
+def _single_body(asset_cfg, asset) -> int:
+    body_ids = asset_cfg.body_ids
+    if isinstance(body_ids, slice):
+        body_ids = list(range(asset.num_bodies))[body_ids]
+    if len(body_ids) != 1:
+        raise ValueError(f"expected exactly one body, got {body_ids}")
+    return int(body_ids[0])
+
+
+class base_mass_delta(_EpisodeDraw):
+    width = 1
+
+    def _read(self, asset, env_ids_cpu):
+        body = _single_body(self._asset_cfg, asset)
+        masses = asset.root_physx_view.get_masses()
+        return (masses[env_ids_cpu, body] - asset.data.default_mass[env_ids_cpu, body]).unsqueeze(-1)
+
+
+class base_com_offset(_EpisodeDraw):
+    width = 3
+
+    def __init__(self, cfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        asset = env.scene[self._asset_cfg.name]
+        self._nominal = asset.root_physx_view.get_coms()[:, _single_body(self._asset_cfg, asset), :3].clone()
+
+    def _read(self, asset, env_ids_cpu):
+        coms = asset.root_physx_view.get_coms()[env_ids_cpu, _single_body(self._asset_cfg, asset), :3]
+        return coms - self._nominal[env_ids_cpu]
+
+
+class foot_friction(_EpisodeDraw):
+    width = 4
+
+    def __init__(self, cfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        asset = env.scene[self._asset_cfg.name]
+        body_ids = self._asset_cfg.body_ids
+        if isinstance(body_ids, slice) or len(body_ids) != 2:
+            raise ValueError(f"foot_friction needs the two foot bodies, got {body_ids}")
+        ranges = _body_shape_ranges(asset)
+        self._shapes = [ranges[int(b)] for b in body_ids]
+        if any(hi <= lo for lo, hi in self._shapes):
+            raise RuntimeError(f"a foot body has no collision shape: {self._shapes}")
+
+    def _read(self, asset, env_ids_cpu):
+        props = asset.root_physx_view.get_material_properties()[env_ids_cpu]
+        static = torch.stack([props[:, lo:hi, 0].mean(dim=1) for lo, hi in self._shapes], dim=-1)
+        dynamic = torch.stack([props[:, lo:hi, 1].mean(dim=1) for lo, hi in self._shapes], dim=-1)
+        return torch.cat([static, dynamic], dim=-1)
