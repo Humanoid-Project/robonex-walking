@@ -103,7 +103,7 @@ JOINT_OBS_MAX_DELAY_STEPS = 1
 JOINT_OBS_MIN_DELAY_STEPS = 0
 JOINT_FRICTION_RANGE = {"rs02": (0.05, 0.25), "rs03": (0.2, 0.8)}
 JOINT_STATIC_FRICTION_RATIO = 1.0
-BASE_COM_RANGE = {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
+BASE_COM_RANGE = {"x": (-0.03, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
 SUSTAINED_LOAD_FORCE_RANGE = {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
 SUSTAINED_LOAD_TORQUE_RANGE = {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
 SUSTAINED_LOAD_HEIGHT_M = 0.0
@@ -467,7 +467,7 @@ class RewardsCfg:
     lin_vel_y = RewTerm(func=mdp.lin_vel_y_l2_bounded, weight=-0.3)
     track_lin_vel_y_cycle = RewTerm(
         func=mdp.track_lin_vel_y_cycle_exp,
-        weight=0.0,
+        weight=1.0,
         params={"std": 0.15, "window_steps": 40},
     )
     track_ang_vel_z = RewTerm(
@@ -642,12 +642,12 @@ class RewardsCfg:
     )
     com_forward_margin = RewTerm(
         func=mdp.com_forward_margin_l2,
-        weight=0.0,
+        weight=-0.5,
         params={
-            "target": 0.065,
+            "target": 0.055,
             "scale": 0.02,
             "tau_s": 0.8,
-            "standing": "floor",
+            "standing": "cap",
             "standing_cap": 0.060,
             "standing_floor": 0.0,
             "settle_s": 2.5,

@@ -5,6 +5,7 @@
 
 """Installation script for the 'robonex_walking' python package."""
 
+import ast
 import os
 
 import toml
@@ -14,11 +15,20 @@ from setuptools import setup
 EXTENSION_PATH = os.path.dirname(os.path.realpath(__file__))
 # Read the extension.toml file
 EXTENSION_TOML_DATA = toml.load(os.path.join(EXTENSION_PATH, "config", "extension.toml"))
+CONTRACT_PATH = os.path.join(
+    EXTENSION_PATH, "robonex_walking", "tasks", "manager_based", "robonex_walking", "robot_contract_v2.py"
+)
+with open(CONTRACT_PATH) as contract_file:
+    ROBONEX_COMMON_VERSION = next(
+        ast.literal_eval(node.value)
+        for node in ast.parse(contract_file.read()).body
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", None) == "ROBONEX_COMMON_VERSION"
+    )
 
 # Minimum dependencies required prior to installation
 INSTALL_REQUIRES = [
     "psutil",
-    "robonex-common @ git+https://github.com/Humanoid-Project/robonex-common.git@v2.4.0",
+    f"robonex-common @ git+https://github.com/Humanoid-Project/robonex-common.git@v{ROBONEX_COMMON_VERSION}",
 ]
 
 # Installation operation

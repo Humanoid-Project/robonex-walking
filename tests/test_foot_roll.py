@@ -1,4 +1,5 @@
 import ast
+import inspect
 import json
 import math
 import os
@@ -6,6 +7,7 @@ import unittest
 from pathlib import Path
 
 import torch
+from robonex_common.foot_roll import FOOT_ROLL_ITERATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "source/robonex_walking/robonex_walking/tasks/manager_based/robonex_walking"
@@ -30,7 +32,8 @@ def load_contract_constants():
 class FootRollClipTest(unittest.TestCase):
     def setUp(self):
         self.roll, self.clip, self.slew = load_functions(
-            TASK / "mdp/actions.py", ["foot_roll", "clip_foot_roll", "slew_limit_step"], {"torch": torch}
+            TASK / "mdp/actions.py", ["foot_roll", "clip_foot_roll", "slew_limit_step"],
+            {"torch": torch, "FOOT_ROLL_ITERATIONS": FOOT_ROLL_ITERATIONS},
         )
         self.coeffs, self.limit = load_contract_constants()
         margin = 0.01
@@ -91,6 +94,32 @@ class FootRollClipTest(unittest.TestCase):
             roll = self.roll(position[:, 0], position[:, 1], self.coeffs)
             self.assertLessEqual(float(roll.abs().max()), self.limit + math.radians(0.05))
         self.assertGreater(unprojected_outside, 0)
+
+    def test_default_iterations_come_from_common(self):
+        self.assertEqual(inspect.signature(self.clip).parameters["iterations"].default, FOOT_ROLL_ITERATIONS)
+
+    def test_guarded_step_is_bit_identical_to_the_plain_division(self):
+        _, c1, c2, c3, c4, c5 = self.coeffs
+        u, l = self.u.clone(), self.l.clone()
+        for _ in range(FOOT_ROLL_ITERATIONS):
+            roll = self.roll(u, l, self.coeffs)
+            excess = roll - torch.clamp(roll, -self.limit, self.limit)
+            d_upper = c1 + 2.0 * c3 * u + c4 * l
+            d_lower = c2 + c4 * u + 2.0 * c5 * l
+            step = excess / (d_upper * d_upper + d_lower * d_lower)
+            u = torch.clamp(u - step * d_upper, self.upper_range[0], self.upper_range[1])
+            l = torch.clamp(l - step * d_lower, self.lower_range[0], self.lower_range[1])
+        got_u, got_l = self.clipped(self.u, self.l)
+        self.assertTrue(torch.equal(got_u, u))
+        self.assertTrue(torch.equal(got_l, l))
+
+    def test_zero_gradient_leaves_the_targets_finite_and_unchanged(self):
+        coeffs = (0.5, 0.0, 0.0, 0.0, 0.0, 0.0)
+        u = torch.zeros(3, dtype=torch.float64)
+        l = torch.zeros(3, dtype=torch.float64)
+        got_u, got_l = self.clip(u, l, self.upper_range, self.lower_range, coeffs, self.limit)
+        self.assertTrue(torch.equal(got_u, u))
+        self.assertTrue(torch.equal(got_l, l))
 
 
 if __name__ == "__main__":

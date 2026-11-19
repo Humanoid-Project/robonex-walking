@@ -86,7 +86,7 @@ class TrackLinVelYCycleTest(unittest.TestCase):
         self.assertTrue(torch.equal(a, b))
         self.assertEqual(int(term._count[0]), 1)
 
-    def test_cfg_term_is_inert_by_default(self):
+    def test_cfg_term_is_the_trained_recipe(self):
         tree = ast.parse(ENV_CFG.read_text())
         found = None
         for node in ast.walk(tree):
@@ -94,7 +94,7 @@ class TrackLinVelYCycleTest(unittest.TestCase):
                 found = node
         self.assertIsNotNone(found)
         kw = {k.arg: k.value for k in found.value.keywords}
-        self.assertEqual(ast.literal_eval(kw["weight"]), 0.0)
+        self.assertEqual(ast.literal_eval(kw["weight"]), 1.0)
         self.assertEqual(kw["func"].attr, "track_lin_vel_y_cycle_exp")
 
 

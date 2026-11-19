@@ -11,8 +11,8 @@ source ./robonex-common/setup/setup_isaacsim.sh
 python -m pip install -e ./robonex-walking/source/robonex_walking
 ```
 
-Runs on the `isaacsim` conda env, not a `.venv`. `robonex-common` is pinned in
-`source/robonex_walking/setup.py` — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md).
+Runs on the `isaacsim` conda env, not a `.venv`. `robonex-common` is pinned by `ROBONEX_COMMON_VERSION` in
+`robot_contract_v2.py` (read by `setup.py`; importing the package fails on another version) — see [`robonex-common/setup/SETUP.md`](https://github.com/Humanoid-Project/robonex-common/blob/main/setup/SETUP.md).
 
 | Variable | Required | Default | Description |
 | --- | :---: | --- | --- |
@@ -46,6 +46,8 @@ robonex-walking/
 | Task | Model |
 | --- | --- |
 | `RoboNex-Walking-V2-Edu-v0` | `robonex-description` ver2 closed-loop mesh USD |
+| `RoboNex-Walking-V2-Edu-Lean25-v0` | Same model, `lean25` action pose |
+| `RoboNex-Walking-V2-Edu-PrivCritic-v0` | Same model, privileged critic observations |
 
 <br>
 
@@ -80,7 +82,7 @@ conda activate isaacsim
 | - | `--resume` | Off | Resume from a checkpoint |
 | - | `--load_run` | - | Run folder to resume |
 | - | `--checkpoint` | - | Checkpoint file to resume |
-| - | `--experiment_name` | - | Parsed but not applied; the task config sets the log folder |
+| - | `--experiment_name` | Task config | Log folder under `logs/rsl_rl/` |
 | - | `--run_name` | - | Run-name suffix |
 | - | `--logger` | - | `wandb`, `tensorboard`, or `neptune` |
 | - | `--log_project_name` | - | wandb / neptune project |
@@ -145,8 +147,8 @@ python scripts/rsl_rl/play.py \
 
 | Output | Description |
 | --- | --- |
-| `<run>/exported/policy.onnx` | ONNX policy with observation normalizer |
-| `<run>/exported/policy.pt` | TorchScript policy with observation normalizer |
+| `<run>/exported/<checkpoint>/policy.onnx` | ONNX policy with observation normalizer |
+| `<run>/exported/<checkpoint>/policy.pt` | TorchScript policy with observation normalizer |
 
 <br>
 
@@ -177,7 +179,7 @@ Evaluates one checkpoint on a fixed grid of velocity commands (`fwd_slow`, `fwd_
 | - | `--obs_delay` | `0` | Joint observation delay (steps) |
 | - | `--obs_delay_pin` | `-1` | Fix a trained random joint observation delay (steps) |
 | - | `--actuation_delay` | Training | Actuation delay `LOW HIGH` (physics substeps) |
-| - | `--joint_friction` | Training | Coulomb joint friction `LOW HIGH` (N·m) |
+| - | `--joint_friction` | Training | Coulomb joint friction `RS02 RS03` (N·m) |
 | - | `--floor_friction` | Training | Foot-floor friction |
 | - | `--com_pin` | `0 0 0` | Base CoM offset `X Y Z` (m) |
 | - | `--com_keep_training` | Off | Keep the training CoM randomization |
@@ -296,7 +298,7 @@ python scripts/rsl_rl/export_actor_cpu.py \
 ```bash
 # Example
 python scripts/export_policy_manifest.py \
-  logs/rsl_rl/robonex_walking_v2_edu/2026-10-15_00-00-00_example/exported/policy.onnx \
+  logs/rsl_rl/robonex_walking_v2_edu/2026-10-15_00-00-00_example/exported/model_999/policy.onnx \
   --checkpoint logs/rsl_rl/robonex_walking_v2_edu/2026-10-15_00-00-00_example/model_999.pt \
   --description-model ver2/mujoco/robot/edu/scene.xml
 ```
@@ -325,7 +327,7 @@ python scripts/list_envs.py --keyword Walking
 
 ### `scripts/zero_agent.py`
 
-Sends a zero normalized action, i.e. the midpoint of each clipped joint range.
+Sends a zero normalized action, i.e. the action offset (default pose) of each joint.
 
 | Command | Option | Default | Description |
 | --- | --- | --- | --- |

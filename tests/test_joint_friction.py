@@ -218,6 +218,9 @@ class PinTest(unittest.TestCase):
             effects.pin_joint_friction(self.env_cfg()[0], {"rs02": 0.14}, object())
         with self.assertRaises(ValueError):
             effects.pin_joint_friction(self.env_cfg()[0], {"rs02": -0.1, "rs03": 0.47}, object())
+        for bad in (float("nan"), float("inf")):
+            with self.assertRaises(ValueError):
+                effects.pin_joint_friction(self.env_cfg()[0], {"rs02": 0.14, "rs03": bad}, object())
         with self.assertRaises(KeyError):
             effects.pin_joint_friction(types.SimpleNamespace(events=types.SimpleNamespace()), {"rs02": 0.1, "rs03": 0.4},
                                        object())

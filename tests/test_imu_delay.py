@@ -164,6 +164,12 @@ class ImuDelayTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             make(self.ns, 2, 4, 3, Signal(2))
 
+    def test_zero_history_length_is_refused(self):
+        cfg = types.SimpleNamespace(min_delay_steps=1, max_delay_steps=6, history_length=0)
+        imu = self.ns["DelayedImu"](cfg, 2, Signal(2))
+        with self.assertRaisesRegex(ValueError, "history_length"):
+            imu._initialize_impl()
+
     def test_zero_delay_is_bit_identical_to_the_sensor_data(self):
         torch.manual_seed(1)
         num_envs = 5

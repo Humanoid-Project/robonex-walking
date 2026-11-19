@@ -11,6 +11,7 @@ from pathlib import Path
 
 import torch
 import yaml
+from robonex_common.foot_roll import FOOT_ROLL_ITERATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "source/robonex_walking/robonex_walking/tasks/manager_based/robonex_walking"
@@ -52,6 +53,7 @@ def load_module(name, path):
 
 
 def load_nodes(path, names, namespace):
+    namespace.setdefault("FOOT_ROLL_ITERATIONS", FOOT_ROLL_ITERATIONS)
     nodes = [n for n in ast.parse(path.read_text()).body if getattr(n, "name", None) in names]
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(path), "exec"), namespace)
     return namespace

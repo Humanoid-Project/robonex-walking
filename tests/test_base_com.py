@@ -96,11 +96,11 @@ class ComOffsetEventTest(unittest.TestCase):
     def offset(self, coms):
         return coms[:, self.BASE, :3] - self.asset.nominal[:, self.BASE, :3]
 
-    def test_default_range_is_inert_and_draws_nothing(self):
-        default = constant("BASE_COM_RANGE")
+    def test_zero_range_is_inert_and_draws_nothing(self):
+        zero = {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
         rng = torch.get_rng_state()
         for _ in range(3):
-            coms = self.call(None, dict(default))
+            coms = self.call(None, dict(zero))
         self.assertTrue(torch.equal(torch.get_rng_state(), rng))
         self.assertEqual(self.asset.root_physx_view.gets, 0)
         self.assertEqual(self.asset.root_physx_view.sets, [])
@@ -172,8 +172,8 @@ class ComOffsetEventTest(unittest.TestCase):
 
 
 class WiringTest(unittest.TestCase):
-    def test_range_constant_is_zero_width_on_every_axis(self):
-        self.assertEqual(constant("BASE_COM_RANGE"), {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)})
+    def test_range_constant_is_the_trained_recipe(self):
+        self.assertEqual(constant("BASE_COM_RANGE"), {"x": (-0.03, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)})
 
     def test_event_term_is_the_offset_class_on_base_link(self):
         term = event_term("randomize_base_com")

@@ -294,17 +294,17 @@ class ComForwardMarginTest(unittest.TestCase):
         env._sway_last_push_step = torch.tensor([env.common_step_counter])
         self.assertEqual(self.advance(term, env, 1, push_grace_s=1.7, **kw).item(), 0.0)
 
-    def test_cfg_term_is_inert_by_default(self):
+    def test_cfg_term_is_the_trained_recipe(self):
         tree = ast.parse(ENV_CFG.read_text())
         rewards = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "RewardsCfg")
         term = next(n for n in rewards.body if isinstance(n, ast.Assign) and n.targets[0].id == "com_forward_margin")
         kw = {k.arg: k.value for k in term.value.keywords}
         self.assertEqual(ast.unparse(kw["func"]), "mdp.com_forward_margin_l2")
-        self.assertEqual(ast.literal_eval(kw["weight"]), 0.0)
+        self.assertEqual(ast.literal_eval(kw["weight"]), -0.5)
         params = {ast.literal_eval(k): v for k, v in zip(kw["params"].keys, kw["params"].values)}
         self.assertNotIn("recovery_gate", params)
         literal = {k: ast.literal_eval(v) for k, v in params.items() if k not in ("asset_cfg", "foot_cfg")}
-        self.assertEqual(literal, {"target": 0.065, "scale": 0.02, "tau_s": 0.8, "standing": "floor", "standing_cap": 0.060,
+        self.assertEqual(literal, {"target": 0.055, "scale": 0.02, "tau_s": 0.8, "standing": "cap", "standing_cap": 0.060,
                                    "standing_floor": 0.0, "settle_s": 2.5, "command_name": "base_velocity", "command_deadband": 0.05,
                                    "push_grace_s": 0.0})
 

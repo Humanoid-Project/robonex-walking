@@ -91,6 +91,10 @@ class delayed_joint_state(ManagerTermBase):
 class DelayedImu(Imu):
     def _initialize_impl(self):
         super()._initialize_impl()
+        if self.cfg.history_length <= 0:
+            raise ValueError(
+                f"DelayedImu needs history_length > 0 so its ring advances every physics substep, got {self.cfg.history_length}"
+            )
         if not 0 <= self.cfg.min_delay_steps <= self.cfg.max_delay_steps:
             raise ValueError(
                 f"imu delay steps must satisfy 0 <= min <= max, got {self.cfg.min_delay_steps}..{self.cfg.max_delay_steps}"

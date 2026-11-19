@@ -2,6 +2,15 @@ import json
 import math
 from pathlib import Path
 
+import robonex_common
+
+ROBONEX_COMMON_VERSION = "2.4.0"
+if robonex_common.__version__ != ROBONEX_COMMON_VERSION:
+    raise ImportError(
+        f"robonex_walking is pinned to robonex-common {ROBONEX_COMMON_VERSION}, "
+        f"but {robonex_common.__version__} is installed ({robonex_common.__file__})"
+    )
+
 from robonex_common.actuators import ACTUATOR_PARAMETERS
 from robonex_common.joints import ACTUATED_JOINTS
 from robonex_common.limits import DEFAULT_ACTION_MARGIN_RAD, RUNNER_ACTION_CLIP, MAX_ACTION_SCALE_RAD, ACTION_REACH_SIGMA

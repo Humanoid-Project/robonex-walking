@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 try:
+    from robonex_common.foot_roll import FOOT_ROLL_ITERATIONS
     from robonex_common.foot_roll import clip_foot_roll as deploy_clip
     from robonex_common.models import VER2_EDU
 except ImportError:
@@ -33,7 +34,9 @@ def load_contract_constants():
 @unittest.skipIf(deploy_clip is None, "robonex-common without the Ver.2 profile (< 0.6.0)")
 class DeployRollParityTest(unittest.TestCase):
     def setUp(self):
-        (self.train_clip,) = load_functions(TASK / "mdp/actions.py", ["foot_roll", "clip_foot_roll"], {"torch": torch})[1:]
+        (self.train_clip,) = load_functions(
+            TASK / "mdp/actions.py", ["foot_roll", "clip_foot_roll"], {"torch": torch, "FOOT_ROLL_ITERATIONS": FOOT_ROLL_ITERATIONS}
+        )[1:]
         self.coeffs, self.limit, self.pairs = load_contract_constants()
         margin = 0.01
         self.upper_range = (math.radians(-16.0) + margin, math.radians(50.0) - margin)

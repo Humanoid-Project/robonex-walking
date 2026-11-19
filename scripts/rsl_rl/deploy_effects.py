@@ -91,7 +91,9 @@ def pin_joint_friction(env_cfg, levels, func):
     term = getattr(env_cfg.events, "randomize_joint_friction", None)
     if term is None:
         raise KeyError("the env has no randomize_joint_friction event to pin")
-    if set(levels) != {joint.motor_model for joint in ACTUATED_JOINTS} or min(levels.values()) < 0.0:
+    if set(levels) != {joint.motor_model for joint in ACTUATED_JOINTS} or not all(
+        math.isfinite(level) and level >= 0.0 for level in levels.values()
+    ):
         raise ValueError(f"joint friction needs one non-negative N*m level per motor model: {levels}")
     term.func = func
     term.params = {

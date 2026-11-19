@@ -247,7 +247,75 @@ def _live_gait_period(unwrapped):
     return float(value) if value is not None else None
 
 
-def check_training_config(checkpoint, applied):
+def _differs(trained, value):
+    trained = float(trained)
+    return abs(trained - float(value)) > max(1e-6, 1e-6 * abs(trained))
+
+
+def _check_action_path(action, agent, applied, strict, issues):
+    def missing(field):
+        if strict:
+            issues.append("%s missing in the saved params; --strict cannot verify it" % field)
+
+    saved_clip = action.get("clip", _MISSING)
+    live_clip = applied.get("action_clip") or {}
+    if saved_clip is _MISSING:
+        missing("actions.joint_pos.clip")
+    elif not isinstance(saved_clip, dict):
+        issues.append("clip trained %r, evaluating %r" % (saved_clip, live_clip))
+    else:
+        for name, (low, high) in live_clip.items():
+            bounds = saved_clip.get(name)
+            if bounds is None:
+                missing("actions.joint_pos.clip[%s]" % name)
+                continue
+            for side, trained, value in (("low", bounds[0], low), ("high", bounds[1], high)):
+                if _differs(trained, value):
+                    issues.append("clip[%s] %s trained %.9f, evaluating %.9f" % (name, side, float(trained), value))
+
+    live_roll = applied.get("foot_roll") or {}
+    for field, key in (("foot_roll_limit", "limit"), ("foot_roll_coeffs", "coeffs"), ("foot_roll_pairs", "pairs")):
+        if field not in action:
+            missing("actions.joint_pos.%s" % field)
+            continue
+        trained, value = action[field], live_roll.get(key)
+        if key == "limit":
+            same = value is not None and not _differs(trained, value)
+        elif key == "coeffs":
+            trained = [float(v) for v in trained]
+            same = value is not None and len(trained) == len(value) and not any(
+                _differs(a, b) for a, b in zip(trained, value))
+        else:
+            trained = [[str(u), str(l), float(sign)] for u, l, sign in trained]
+            same = trained == value
+        if not same:
+            issues.append("%s trained %r, evaluating %r" % (field, trained, value))
+
+    live_slew = applied.get("slew") or {}
+    cli_slew = bool((applied.get("deploy_effects") or {}).get("slew_limit"))
+    for field, key in (("slew_enabled", "enabled"), ("max_speed", "max_speed"), ("max_accel", "max_accel")):
+        if field not in action:
+            missing("actions.joint_pos.%s" % field)
+            continue
+        trained, value = action[field], live_slew.get(key)
+        if key == "enabled":
+            if bool(trained) is False and value is True and cli_slew:
+                continue
+            same = value is not None and bool(trained) == bool(value)
+        else:
+            same = value is not None and not _differs(trained, value)
+        if not same:
+            issues.append("%s trained %r, evaluating %r" % (field, trained, value))
+
+    if agent is None:
+        missing("params/agent.yaml")
+    elif agent.get("clip_actions") is None:
+        missing("agent.clip_actions")
+    elif applied.get("runner_clip") is None or _differs(agent["clip_actions"], applied["runner_clip"]):
+        issues.append("runner clip_actions trained %r, evaluating %r" % (agent["clip_actions"], applied.get("runner_clip")))
+
+
+def check_training_config(checkpoint, applied, strict=False):
     """Compare the live env against params/env.yaml of the run that saved this checkpoint."""
     import yaml
 
@@ -258,20 +326,33 @@ def check_training_config(checkpoint, applied):
         ref = yaml.unsafe_load(path.read_text())
     except Exception as error:  # the yaml carries pickled cfg objects
         return ["params/env.yaml unreadable: %s" % error]
+    agent = None
+    agent_path = path.with_name("agent.yaml")
+    if agent_path.is_file():
+        try:
+            agent = yaml.unsafe_load(agent_path.read_text())
+        except Exception as error:
+            return ["params/agent.yaml unreadable: %s" % error]
     issues = []
     action = ref.get("actions", {}).get("joint_pos", {})
     for field, live in (("scale", applied["action_scale"]), ("offset", applied["action_offset"])):
         saved = action.get(field)
         if not isinstance(saved, dict):
+            if strict:
+                issues.append("actions.joint_pos.%s missing in the saved params; --strict cannot verify it" % field)
             continue
         for name, value in live.items():
             if name not in saved:
+                if strict:
+                    issues.append("actions.joint_pos.%s[%s] missing in the saved params; --strict cannot verify it"
+                                  % (field, name))
                 continue
             trained = float(saved[name])
             if abs(trained - value) > max(1e-6, 1e-6 * abs(trained)):
                 issues.append(
                     "%s[%s] trained %.9f, evaluating %.9f" % (field, name, trained, value)
                 )
+    _check_action_path(action, agent, applied, strict, issues)
     delay = applied.get("deploy_effects", {}).get("actuation_delay") or {}
     if delay.get("source") != "pin":
         trained_delay = action.get("actuation_delay_substeps")
@@ -480,6 +561,16 @@ def main():
         "observation_shape": list(unwrapped.observation_space["policy"].shape),
         "step_dt": float(unwrapped.step_dt),
         "runner_clip": float(agent_cfg.clip_actions),
+        "foot_roll": {
+            "limit": float(getattr(action_term.cfg, "foot_roll_limit", 0.0)),
+            "coeffs": [float(c) for c in getattr(action_term.cfg, "foot_roll_coeffs", ())],
+            "pairs": [[str(u), str(l), float(sign)] for u, l, sign in getattr(action_term.cfg, "foot_roll_pairs", ())],
+        },
+        "slew": {
+            "enabled": bool(getattr(action_term.cfg, "slew_enabled", hasattr(action_term, "_slew_position"))),
+            "max_speed": float(action_term.cfg.max_speed) if hasattr(action_term.cfg, "max_speed") else None,
+            "max_accel": float(action_term.cfg.max_accel) if hasattr(action_term.cfg, "max_accel") else None,
+        },
         "observation_terms": list(unwrapped.observation_manager.active_terms["policy"]),
         "reward_terms": list(unwrapped.reward_manager.active_terms),
         "reward_specs": _live_reward_specs(unwrapped),
@@ -496,7 +587,7 @@ def main():
         "measure_steps": args_cli.measure_steps,
         "seed": args_cli.seed,
         "applied": applied,
-        "config_mismatch": check_training_config(checkpoint, applied),
+        "config_mismatch": check_training_config(checkpoint, applied, strict=args_cli.strict),
     }
     for line in meta["config_mismatch"]:
         print("CONFIG MISMATCH %s" % line, flush=True)
@@ -506,9 +597,9 @@ def main():
         )
     if not meta["config_mismatch"]:
         print(
-            "CONFIG match: action scale/offset, gait period, decimation, episode length, "
-            "observation term order and reward term set agree with the checkpoint's "
-            "params/env.yaml. Gains and command ranges are NOT compared.",
+            "CONFIG match: action scale/offset, target clips, foot-roll clip, slew stage, runner clip, gait period, "
+            "decimation, episode length, observation term order and reward term set agree with the checkpoint's "
+            "params/env.yaml and params/agent.yaml. Gains and command ranges are NOT compared.",
             flush=True,
         )
 
