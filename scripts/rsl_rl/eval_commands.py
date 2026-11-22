@@ -52,6 +52,11 @@ parser.add_argument("--load_pin", type=float, nargs=6, default=None, metavar=("F
                          "default without this flag: no load")
 parser.add_argument("--load_keep_training", action="store_true",
                     help="Keep the sustained base load range restored from the training config instead of pinning it to zero")
+parser.add_argument("--joint_zero_offset_deg", type=str, nargs="+", default=None, metavar="JOINT=DEG",
+                    help="Fix the joint zero (encoder) offset d of the named joints (deg) on every env, others 0; the policy "
+                         "reads q - d and the motor reaches target + d; default without this flag: d = 0")
+parser.add_argument("--joint_zero_keep_training", action="store_true",
+                    help="Keep the joint zero offset randomisation range of the config instead of pinning d to 0")
 parser.add_argument("--deploy_overspeed", type=float, default=10.0,
                     help="Deploy stop: actuated joint speed above this (rad/s)")
 parser.add_argument("--deploy_max_error_deg", type=float, default=25.0,
@@ -76,7 +81,10 @@ import robonex_walking.tasks  # noqa: F401
 from deploy_effects import (
     BASE_COM_EVENT,
     BASE_LOAD_EVENT,
+    JOINT_ZERO_EVENT,
     apply_base_com_pin,
+    apply_joint_zero_pin,
+    parse_joint_zero_pin,
     apply_hip_yaw_kp_nominal,
     apply_actuation_delay,
     apply_push_interval,
@@ -400,6 +408,10 @@ def check_training_config(checkpoint, applied, strict=False):
 
     saved_events = _json_safe(ref.get("events"))
     live_events = applied.get("events")
+    zero = (applied.get("deploy_effects") or {}).get("joint_zero_offset") or {}
+    if isinstance(saved_events, dict) and isinstance(live_events, dict) and zero.get("nominal") is True:
+        if "randomize_joint_zero" not in saved_events:
+            live_events = {k: v for k, v in live_events.items() if k != "randomize_joint_zero"}
     if isinstance(saved_events, dict) and isinstance(live_events, dict):
         for line in _diff_config(saved_events, live_events, "events"):
             issues.append(line)
@@ -441,6 +453,7 @@ def main():
     env_cfg = parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs)
     com_template = copy.deepcopy(getattr(env_cfg.events, BASE_COM_EVENT, None))
     load_template = copy.deepcopy(getattr(env_cfg.events, BASE_LOAD_EVENT, None))
+    zero_template = copy.deepcopy(getattr(env_cfg.events, JOINT_ZERO_EVENT, None))
     if args_cli.training_cfg:
         print(f"[eval] training config: {apply_training_env_cfg(env_cfg, args_cli.checkpoint)}")
         env_cfg.scene.num_envs = args_cli.num_envs
@@ -474,6 +487,9 @@ def main():
     print(f"[eval] base CoM: {base_com}")
     base_load = apply_base_load_pin(env_cfg, args_cli.load_pin, load_template, args_cli.load_keep_training)
     print(f"[eval] base load: {base_load}")
+    joint_zero = apply_joint_zero_pin(env_cfg, parse_joint_zero_pin(args_cli.joint_zero_offset_deg), zero_template,
+                                      args_cli.joint_zero_keep_training)
+    print(f"[eval] joint zero offset: {joint_zero}")
     agent_cfg = load_cfg_from_registry(args_cli.task, "rsl_rl_cfg_entry_point")
 
     # never resample or zero a command: the harness drives it directly
@@ -548,6 +564,7 @@ def main():
             "floor_friction": floor_friction,
             "base_com": base_com,
             "base_load": base_load,
+            "joint_zero_offset": joint_zero,
         },
         "action_effective": effective_action_config(action_term, args_cli.slew_limit),
         "tracking_error_kernel": "wrapped_abs",

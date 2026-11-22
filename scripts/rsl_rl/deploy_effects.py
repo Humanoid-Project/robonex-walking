@@ -203,6 +203,63 @@ def apply_base_load_pin(env_cfg, load=None, template=None, keep_training=False):
     }
 
 
+JOINT_ZERO_EVENT = "randomize_joint_zero"
+
+
+def parse_joint_zero_pin(items):
+    if items is None:
+        return None
+    pin = {}
+    for item in items:
+        name, sep, value = item.partition("=")
+        if not sep or not name:
+            raise ValueError(f"joint zero offset pin needs JOINT=DEG, got {item!r}")
+        if name in pin:
+            raise ValueError(f"joint zero offset pin names {name} twice")
+        degrees = float(value)
+        if not math.isfinite(degrees):
+            raise ValueError(f"joint zero offset pin {item!r} is not finite")
+        pin[name] = degrees
+    return pin
+
+
+def apply_joint_zero_pin(env_cfg, offsets_deg=None, template=None, keep_training=False):
+    if keep_training and offsets_deg is not None:
+        raise ValueError("--joint_zero_offset_deg and --joint_zero_keep_training exclude each other")
+    term = getattr(env_cfg.events, JOINT_ZERO_EVENT, None)
+    pin = None
+    if keep_training:
+        source = "training"
+    else:
+        pin = dict(offsets_deg or {})
+        source = "pin" if offsets_deg is not None else "default_nominal"
+        reference = term if term is not None else template
+        if pin:
+            if reference is None:
+                raise KeyError(f"the env has no {JOINT_ZERO_EVENT} event to pin an offset with")
+            names = list(reference.params["offset_range"])
+            unknown = sorted(set(pin) - set(names))
+            if unknown:
+                raise KeyError(f"joint zero offset pin names joints the event does not draw: {unknown}; joints {names}")
+        if term is None and any(pin.values()):
+            term = copy.deepcopy(template)
+            setattr(env_cfg.events, JOINT_ZERO_EVENT, term)
+        if term is not None:
+            term.params["offset_range"] = {
+                name: (math.radians(pin.get(name, 0.0)),) * 2 for name in term.params["offset_range"]
+            }
+    offset_range = None
+    if term is not None:
+        offset_range = {name: [float(v) for v in bounds] for name, bounds in term.params["offset_range"].items()}
+    return {
+        "source": source,
+        "pin_deg": pin,
+        "event_present": term is not None,
+        "range_rad": offset_range,
+        "nominal": offset_range is None or all(v == 0.0 for bounds in offset_range.values() for v in bounds),
+    }
+
+
 MOVED_DESCRIPTION_PATHS = (
     ("/robonex-description/new_urdf/", "/robonex-description/ver2/",
      "Ver.2 USD regenerated 2026-09-27 with the decided hip limits; runs before W73 trained on the older limits"),

@@ -73,6 +73,9 @@ class delayed_joint_state(ManagerTermBase):
         asset = env.scene[asset_cfg.name]
         if field == "pos":
             current = asset.data.joint_pos[:, asset_cfg.joint_ids] - asset.data.default_joint_pos[:, asset_cfg.joint_ids]
+            zero_offset = getattr(env, "_joint_zero_offset", None)
+            if zero_offset is not None:
+                current = current - zero_offset[:, asset_cfg.joint_ids]
         else:
             current = asset.data.joint_vel[:, asset_cfg.joint_ids] - asset.data.default_joint_vel[:, asset_cfg.joint_ids]
         if self._frames is None:

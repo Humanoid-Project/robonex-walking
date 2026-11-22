@@ -152,12 +152,22 @@ class Ver2JointPositionAction(SlewLimitedJointPositionAction):
         if self._delay_range is not None:
             self._delay_last = self._processed_actions.clone()
 
+    def _joint_zero_offset(self):
+        offset = getattr(self._env, "_joint_zero_offset", None)
+        return None if offset is None else offset[:, self._joint_ids]
+
     def apply_actions(self):
+        offset = self._joint_zero_offset()
         if self._delay_range is None:
-            super().apply_actions()
+            if offset is None:
+                super().apply_actions()
+            else:
+                self._asset.set_joint_position_target(self._processed_actions + offset, joint_ids=self._joint_ids)
             return
         held = (self._delay_count < self._delay_substeps).unsqueeze(1)
         target = torch.where(held, self._delay_hold, self._processed_actions)
+        if offset is not None:
+            target = target + offset
         self._asset.set_joint_position_target(target, joint_ids=self._joint_ids)
         self._delay_count += 1
 

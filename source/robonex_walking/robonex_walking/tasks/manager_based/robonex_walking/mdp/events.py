@@ -79,6 +79,50 @@ def randomize_joint_coulomb_friction(
     )
 
 
+def joint_zero_offset_bounds(names, offset_range):
+    unknown = sorted(set(offset_range) - set(names))
+    missing = [name for name in names if name not in offset_range]
+    if unknown or missing:
+        raise ValueError(f"joint zero offset_range keys must be the event's joints: unknown {unknown}, missing {missing}")
+    low = torch.tensor([float(offset_range[name][0]) for name in names])
+    high = torch.tensor([float(offset_range[name][1]) for name in names])
+    if not bool(torch.all(torch.isfinite(low)) and torch.all(torch.isfinite(high))):
+        raise ValueError(f"non-finite joint zero offset_range: {offset_range}")
+    if bool(torch.any(high < low)):
+        raise ValueError(f"joint zero offset_range upper bound below lower bound: {offset_range}")
+    return low, high
+
+
+def randomize_joint_zero_offset(
+    env,
+    env_ids: torch.Tensor | None,
+    asset_cfg: SceneEntityCfg,
+    offset_range: dict[str, tuple[float, float]],
+):
+    asset: Articulation = env.scene[asset_cfg.name]
+    joint_ids = asset_cfg.joint_ids
+    if isinstance(joint_ids, slice):
+        joint_ids = list(range(asset.num_joints))[joint_ids]
+    joint_ids = [int(i) for i in joint_ids]
+    names = [asset.joint_names[i] for i in joint_ids]
+    low, high = joint_zero_offset_bounds(names, offset_range)
+    offset = getattr(env, "_joint_zero_offset", None)
+    if offset is None:
+        if not bool(torch.any(low != 0.0) or torch.any(high != 0.0)):
+            return
+        offset = torch.zeros(env.scene.num_envs, asset.num_joints, device=asset.device)
+        env._joint_zero_offset = offset
+    if env_ids is None:
+        env_ids = torch.arange(env.scene.num_envs, device=offset.device)
+    env_ids = torch.as_tensor(env_ids, device=offset.device)
+    low, high = low.to(offset.device), high.to(offset.device)
+    draw = low.expand(len(env_ids), len(joint_ids)).clone()
+    if bool(torch.any(high > low)):
+        draw += (high - low) * torch.rand(len(env_ids), len(joint_ids), device=offset.device)
+    columns = torch.tensor(joint_ids, dtype=torch.long, device=offset.device)
+    offset[env_ids.unsqueeze(1), columns] = draw.to(offset.dtype)
+
+
 class randomize_rigid_body_com_offset(ManagerTermBase):
     def __init__(self, cfg, env):
         super().__init__(cfg, env)

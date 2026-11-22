@@ -103,6 +103,7 @@ JOINT_OBS_MAX_DELAY_STEPS = 1
 JOINT_OBS_MIN_DELAY_STEPS = 0
 JOINT_FRICTION_RANGE = {"rs02": (0.05, 0.25), "rs03": (0.2, 0.8)}
 JOINT_STATIC_FRICTION_RATIO = 1.0
+JOINT_ZERO_OFFSET_RANGE = {name: (0.0, 0.0) for name in LEG_JOINTS}
 BASE_COM_RANGE = {"x": (-0.03, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
 SUSTAINED_LOAD_FORCE_RANGE = {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
 SUSTAINED_LOAD_TORQUE_RANGE = {"x": (0.0, 0.0), "y": (0.0, 0.0), "z": (0.0, 0.0)}
@@ -405,6 +406,15 @@ class EventCfg:
             "friction_range": {name: JOINT_FRICTION_RANGE[model] for name, model in MOTOR_MODEL_BY_JOINT.items()},
             "static_ratio": JOINT_STATIC_FRICTION_RATIO,
             "viscous": 0.0,
+        },
+    )
+
+    randomize_joint_zero = EventTerm(
+        func=mdp.randomize_joint_zero_offset,
+        mode="reset",
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=LEG_JOINTS),
+            "offset_range": dict(JOINT_ZERO_OFFSET_RANGE),
         },
     )
 
