@@ -43,6 +43,8 @@ parser.add_argument("--load_keep_training", action="store_true",
                     help="Keep the sustained base load range of the config instead of pinning it to zero")
 parser.add_argument("--set", action="append", default=[], metavar="PATH=VALUE",
                     help="Override a float in the env config, e.g. scene.robot.actuators.rs02.stiffness.l_hip_yaw_joint=25")
+parser.add_argument("--imu_delay_pin", type=int, default=None, metavar="STEPS",
+                    help="Pin the IMU observation delay (gyro and projected gravity) to STEPS physics substeps for every env")
 parser.add_argument("--actuation_delay", type=int, nargs=2, default=None, metavar=("LOW", "HIGH"),
                     help="Pin the action term's actuation delay to U{LOW..HIGH} physics substeps for every env (0 0 = off)")
 parser.add_argument("--obs_delay", type=int, default=0,
@@ -67,6 +69,7 @@ from deploy_effects import (
     BASE_LOAD_EVENT,
     apply_base_com_pin,
     apply_actuation_delay,
+    apply_imu_delay_pin,
     apply_base_load_pin,
     apply_training_env_cfg,
     disable_randomization,
@@ -127,6 +130,8 @@ def main():
     print(f"[trace] base load: {base_load}")
     actuation_delay = apply_actuation_delay(env_cfg, args_cli.actuation_delay)
     print(f"[trace] actuation delay: {actuation_delay}")
+    imu_delay = apply_imu_delay_pin(env_cfg, args_cli.imu_delay_pin)
+    print(f"[trace] imu delay: {imu_delay}")
     env_cfg.seed = args_cli.seed
     agent_cfg = load_cfg_from_registry(args_cli.task, "rsl_rl_cfg_entry_point")
     env_cfg.commands.base_velocity.resampling_time_range = (1.0e9, 1.0e9)
@@ -348,6 +353,7 @@ def main():
         "base_com": base_com,
         "base_load": base_load,
         "actuation_delay": actuation_delay,
+        "imu_delay": imu_delay,
         "actuation_delay_env_k": None if actuation_delay["substeps"] is None
         else int(action_term._delay_substeps[idx]),
     }

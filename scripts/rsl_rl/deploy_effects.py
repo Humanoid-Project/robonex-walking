@@ -514,6 +514,24 @@ def apply_actuation_delay(env_cfg, pin=None):
             "physics_dt": float(env_cfg.sim.dt)}
 
 
+def apply_imu_delay_pin(env_cfg, steps=None, sensor="imu"):
+    imu = getattr(env_cfg.scene, sensor, None)
+    if steps is not None:
+        if imu is None or not hasattr(imu, "min_delay_steps") or not hasattr(imu, "max_delay_steps"):
+            raise KeyError(f"the scene has no delayed IMU sensor {sensor!r} to pin")
+        steps = int(steps)
+        if steps < 0:
+            raise ValueError(f"the IMU delay pin needs steps >= 0, got {steps}")
+        imu.min_delay_steps = steps
+        imu.max_delay_steps = steps
+    dt = float(env_cfg.sim.dt)
+    live = None if imu is None or not hasattr(imu, "min_delay_steps") else [int(imu.min_delay_steps), int(imu.max_delay_steps)]
+    return {"source": "training" if steps is None else "pin",
+            "physics_steps": live,
+            "age_ms": None if live is None else [v * dt * 1000.0 for v in live],
+            "physics_dt": dt}
+
+
 HIP_YAW_STIFFNESS_EVENT = "randomize_hip_yaw_stiffness"
 
 

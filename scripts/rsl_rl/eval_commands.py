@@ -38,6 +38,8 @@ parser.add_argument("--obs_delay_pin", type=int, default=-1,
                     help="For a policy trained with a random joint observation delay: fix that delay at N steps for every env")
 parser.add_argument("--actuation_delay", type=int, nargs=2, default=None, metavar=("LOW", "HIGH"),
                     help="Pin the action term's actuation delay to U{LOW..HIGH} physics substeps for every env (0 0 = off)")
+parser.add_argument("--imu_delay_pin", type=int, default=None, metavar="STEPS",
+                    help="Pin the IMU observation delay (gyro and projected gravity) to STEPS physics substeps for every env")
 parser.add_argument("--joint_friction", type=float, nargs=2, default=None, metavar=("RS02", "RS03"),
                     help="Fix the Coulomb joint friction (N*m, static = dynamic, no viscous) on every env and reset")
 parser.add_argument("--floor_friction", type=float, default=None, metavar="MU",
@@ -87,6 +89,7 @@ from deploy_effects import (
     parse_joint_zero_pin,
     apply_hip_yaw_kp_nominal,
     apply_actuation_delay,
+    apply_imu_delay_pin,
     apply_push_interval,
     apply_base_load_pin,
     apply_training_env_cfg,
@@ -467,6 +470,8 @@ def main():
     push_interval = apply_push_interval(env_cfg, args_cli.push_interval)
     actuation_delay = apply_actuation_delay(env_cfg, args_cli.actuation_delay)
     print(f"[eval] actuation delay: {actuation_delay}")
+    imu_delay = apply_imu_delay_pin(env_cfg, args_cli.imu_delay_pin)
+    print(f"[eval] imu delay: {imu_delay}")
     hip_yaw_kp = apply_hip_yaw_kp_nominal(env_cfg, args_cli.hip_yaw_kp_nominal)
     gravity_bias = None
     gravity_term = getattr(env_cfg.observations.policy, "projected_gravity", None)
@@ -558,6 +563,7 @@ def main():
             "pushes_disabled": pushes_disabled,
             "push_interval": push_interval,
             "actuation_delay": actuation_delay,
+            "imu_delay": imu_delay,
             "hip_yaw_kp": hip_yaw_kp,
             "gravity_bias": gravity_bias,
             "joint_friction_pin_nm": friction_pinned,
