@@ -4,7 +4,7 @@ from pathlib import Path
 
 import robonex_common
 
-ROBONEX_COMMON_VERSION = "2.4.1"
+ROBONEX_COMMON_VERSION = "2.5.0"
 if robonex_common.__version__ != ROBONEX_COMMON_VERSION:
     raise ImportError(
         f"robonex_walking is pinned to robonex-common {ROBONEX_COMMON_VERSION}, "
