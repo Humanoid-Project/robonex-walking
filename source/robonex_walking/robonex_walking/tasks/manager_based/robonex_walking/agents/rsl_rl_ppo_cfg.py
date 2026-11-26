@@ -79,3 +79,8 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
 class V2EduPPORunnerCfg(PPORunnerCfg):
 
     experiment_name = "robonex_walking_v2_edu"
+
+
+@configclass
+class V3PPORunnerCfg(V2EduPPORunnerCfg):
+    experiment_name = "robonex_walking_v3"

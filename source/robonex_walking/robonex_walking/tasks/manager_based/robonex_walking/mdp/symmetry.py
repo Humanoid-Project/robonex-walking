@@ -44,6 +44,10 @@ def _mirror_name(name: str) -> str:
         return "r_" + name[2:]
     if name.startswith("r_"):
         return "l_" + name[2:]
+    if name.startswith("left_"):
+        return "right_" + name[5:]
+    if name.startswith("right_"):
+        return "left_" + name[6:]
     raise ValueError(f"joint {name!r} has no left/right prefix; the mirror map is undefined")
 
 
@@ -98,7 +102,7 @@ def _check_pair_order(env: ManagerBasedRLEnv, group: str, term: str) -> None:
     params = cfgs[names.index(term)].params
     entity = params.get("asset_cfg", params.get("sensor_cfg"))
     bodies = list(getattr(entity, "body_names", None) or [])
-    if len(bodies) != 2 or not bodies[0].startswith("l_") or bodies[1] != _mirror_name(bodies[0]):
+    if len(bodies) != 2 or not bodies[0].startswith(("l_", "left_")) or bodies[1] != _mirror_name(bodies[0]):
         raise RuntimeError(f"observation term {term!r} must list its bodies as [l_*, r_*], got {bodies}")
     if not getattr(entity, "preserve_order", False):
         raise RuntimeError(f"observation term {term!r} needs preserve_order=True so its slots follow [l_*, r_*]")

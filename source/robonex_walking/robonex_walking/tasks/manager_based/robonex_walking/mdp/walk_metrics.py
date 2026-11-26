@@ -31,8 +31,9 @@ class WalkMetrics:
     ) -> None:
         self.robot: Articulation = env.scene["robot"]
         self.sensor: ContactSensor = env.scene.sensors["contact_forces"]
-        self.body_ids, _ = self.robot.find_bodies(list(FEET), preserve_order=True)
-        self.sensor_ids, _ = self.sensor.find_bodies(list(FEET), preserve_order=True)
+        feet = list(getattr(getattr(env, "cfg", None), "feet_body_names", FEET))
+        self.body_ids, _ = self.robot.find_bodies(feet, preserve_order=True)
+        self.sensor_ids, _ = self.sensor.find_bodies(feet, preserve_order=True)
         self.action = env.action_manager.get_term("joint_pos")
         self.joint_names = tuple(self.action._joint_names)
         self.rest_height = rest_height
