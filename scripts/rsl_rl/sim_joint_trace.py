@@ -239,6 +239,7 @@ def main():
     delay_states = []
 
     def sample_state():
+        clock_offset = getattr(unwrapped, "_gait_clock_offset", None)
         return {
             "delay": observation_delay_state(unwrapped, idx),
             "grav": asset.data.projected_gravity_b[idx].clone(),
@@ -251,6 +252,7 @@ def main():
             "quat": asset.data.root_quat_w[idx].clone(),
             "foot_quat": asset.data.body_quat_w[idx, foot_ids].clone(),
             "episode_length": float(unwrapped.episode_length_buf[idx]),
+            "clock_offset": float(clock_offset[idx]) if clock_offset is not None else 0.0,
             "pos": asset.data.joint_pos[idx, joint_ids].clone(),
             "vel": asset.data.joint_vel[idx, joint_ids].clone(),
             "tau": asset.data.applied_torque[idx, joint_ids].clone(),
@@ -303,7 +305,7 @@ def main():
                 fq.unsqueeze(1).expand(-1, sole.shape[0], -1), sole.unsqueeze(0).expand(2, -1, -1)
             )[..., 2]
             sole_z = (body_p[foot_ids, 2].unsqueeze(-1) + corner_z).amin(dim=-1) - origin[2]
-            gphase = (state["episode_length"] * dt) % GAIT_PERIOD_S / GAIT_PERIOD_S
+            gphase = ((state["episode_length"] * dt) % GAIT_PERIOD_S / GAIT_PERIOD_S + state["clock_offset"]) % 1.0
             row += [round(float(root_v[2]), 5),
                     round(float(foot_b[0, 1]), 5), round(float(foot_b[1, 1]), 5),
                     round(float(torch.abs(foot_b[0, 1] - foot_b[1, 1])), 5),

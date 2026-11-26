@@ -64,6 +64,8 @@ CONTACT_FORCE_SCALE = 1.0e6
 # runs without changing any tensor shape, so nothing downstream could catch it.
 GAIT_PERIOD_S = COMMON_GAIT_PERIOD_S
 GAIT_STANCE_FRACTION = 0.55
+GAIT_CLOCK_OFFSET_RANGE = (0.0, 0.0)
+STOP_GRACE_S = 0.0
 
 GRAVITY = 9.81
 FOOT_CLEARANCE = 0.053
@@ -409,6 +411,12 @@ class EventCfg:
         },
     )
 
+    randomize_gait_clock = EventTerm(
+        func=mdp.randomize_gait_clock_offset,
+        mode="reset",
+        params={"offset_range": GAIT_CLOCK_OFFSET_RANGE},
+    )
+
     randomize_joint_zero = EventTerm(
         func=mdp.randomize_joint_zero_offset,
         mode="reset",
@@ -506,6 +514,7 @@ class RewardsCfg:
                 "contact_forces", body_names=["l_foot", "r_foot"], preserve_order=True
             ),
             "recovery_gate": RECOVERY_GATE,
+            "stop_grace_s": STOP_GRACE_S,
         },
     )
 
@@ -648,6 +657,7 @@ class RewardsCfg:
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*_knee_pitch_joint"]),
             "recovery_gate": RECOVERY_GATE,
+            "stop_grace_s": STOP_GRACE_S,
         },
     )
     com_forward_margin = RewTerm(

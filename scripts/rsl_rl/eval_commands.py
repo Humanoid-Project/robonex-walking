@@ -59,6 +59,10 @@ parser.add_argument("--joint_zero_offset_deg", type=str, nargs="+", default=None
                          "reads q - d and the motor reaches target + d; default without this flag: d = 0")
 parser.add_argument("--joint_zero_keep_training", action="store_true",
                     help="Keep the joint zero offset randomisation range of the config instead of pinning d to 0")
+parser.add_argument("--transition_warmup_s", type=float, default=6.0,
+                    help="Transition cells: walk this long before the earliest walk -> stop switch")
+parser.add_argument("--transition_after_s", type=float, default=4.0,
+                    help="Transition cells: measure this long after each env's switch")
 parser.add_argument("--deploy_overspeed", type=float, default=10.0,
                     help="Deploy stop: actuated joint speed above this (rad/s)")
 parser.add_argument("--deploy_max_error_deg", type=float, default=25.0,
@@ -103,9 +107,22 @@ from deploy_effects import (
 )
 from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import load_cfg_from_registry, parse_env_cfg
-from robonex_walking.tasks.manager_based.robonex_walking.mdp.events import randomize_joint_coulomb_friction
+from robonex_walking.tasks.manager_based.robonex_walking.mdp.events import (
+    push_standing_by_setting_velocity,
+    randomize_joint_coulomb_friction,
+)
+from robonex_walking.tasks.manager_based.robonex_walking.mdp.observations import gait_clock_phase
 from robonex_walking.tasks.manager_based.robonex_walking.mdp.tracking import sent_tracking_error
 from robonex_walking.tasks.manager_based.robonex_walking.mdp.walk_metrics import WalkMetrics
+from transition_metrics import (
+    TRANSITION_CELLS,
+    TransitionRecorder,
+    definition as transition_definition,
+    draw_switch_steps,
+    expand_cells,
+    steps_per_period,
+    window_steps,
+)
 
 CELLS = {
     "fwd_slow": (0.1, 0.0, 0.0),
@@ -330,6 +347,19 @@ def check_training_config(checkpoint, applied, strict=False):
     """Compare the live env against params/env.yaml of the run that saved this checkpoint."""
     import yaml
 
+    inert_new_reward_params = {"stop_grace_s": 0.0}
+    inert_new_events = {"randomize_gait_clock": ("offset_range", [0.0, 0.0])}
+
+    def inert_new_event(name, live):
+        spec = inert_new_events.get(name)
+        if spec is None or not isinstance(live, dict):
+            return False
+        value = (live.get("params") or {}).get(spec[0])
+        try:
+            return [float(v) for v in value] == spec[1]
+        except (TypeError, ValueError):
+            return False
+
     path = pathlib.Path(checkpoint).parent / "params" / "env.yaml"
     if not path.is_file():
         return ["params/env.yaml missing next to the checkpoint; cannot verify"]
@@ -416,6 +446,8 @@ def check_training_config(checkpoint, applied, strict=False):
         if "randomize_joint_zero" not in saved_events:
             live_events = {k: v for k, v in live_events.items() if k != "randomize_joint_zero"}
     if isinstance(saved_events, dict) and isinstance(live_events, dict):
+        live_events = {k: v for k, v in live_events.items() if k in saved_events or not inert_new_event(k, v)}
+    if isinstance(saved_events, dict) and isinstance(live_events, dict):
         for line in _diff_config(saved_events, live_events, "events"):
             issues.append(line)
 
@@ -438,6 +470,9 @@ def check_training_config(checkpoint, applied, strict=False):
         for key in sorted(set(saved_params) | set(live_params)):
             if key not in live_params and _scalar_param(saved_params.get(key, _MISSING)) is _SKIP:
                 continue
+            if key not in saved_params and key in inert_new_reward_params:
+                if _scalar_param(live_params.get(key)) == _scalar_param(inert_new_reward_params[key]):
+                    continue
             saved_value = _scalar_param(saved_params.get(key, _MISSING))
             live_value = _scalar_param(live_params.get(key, _MISSING))
             if saved_value is _SKIP or live_value is _SKIP:
@@ -452,7 +487,97 @@ def check_training_config(checkpoint, applied, strict=False):
     return issues
 
 
+def _transition_state(unwrapped, contact_ids, foot_ids, joint_ids, corners, mass_weights):
+    from isaaclab.utils.math import quat_apply, quat_apply_inverse, yaw_quat
+
+    robot = unwrapped.scene["robot"]
+    sensor = unwrapped.scene.sensors["contact_forces"]
+    forces = torch.nan_to_num(sensor.data.net_forces_w_history[:, :, contact_ids, :], nan=0.0, posinf=0.0, neginf=0.0)
+    contact = torch.norm(forces, dim=-1).amax(dim=1) > 1.0
+    q = robot.data.joint_pos[:, joint_ids]
+    error = sent_tracking_error(robot.data.joint_pos_target[:, joint_ids], q)
+    yaw = yaw_quat(robot.data.root_quat_w)
+    feet = robot.data.body_pos_w[:, foot_ids, :]
+    delta = feet[:, 1, :] - feet[:, 0, :]
+    delta[:, 2] = 0.0
+    foot_delta = quat_apply_inverse(yaw, delta)[:, :2]
+    quat = robot.data.body_quat_w[:, foot_ids, :].unsqueeze(2).expand(-1, -1, corners.shape[0], -1)
+    sole = feet.unsqueeze(2) + quat_apply(quat, corners.view(1, 1, -1, 3).expand(quat.shape[0], quat.shape[1], -1, -1))
+    centre = sole.reshape(sole.shape[0], -1, 3).mean(dim=1)
+    com = torch.sum(robot.data.body_com_pos_w * mass_weights.unsqueeze(-1), dim=1)
+    offset = com - centre
+    offset[:, 2] = 0.0
+    com_offset = quat_apply_inverse(yaw, offset)[:, :2]
+    return contact, error, foot_delta, com_offset
+
+
+def run_transition_cell(name, env, unwrapped, policy, term, forced, joint_names, joint_ids, fail_terms,
+                        period_steps, push_velocity_range, reference_width, seed):
+    cell = TRANSITION_CELLS[name]
+    device = unwrapped.device
+    dt = float(unwrapped.step_dt)
+    warmup = window_steps(args_cli.transition_warmup_s, dt)
+    after = window_steps(args_cli.transition_after_s, dt)
+    generator = torch.Generator().manual_seed(int(seed) * 1000 + list(TRANSITION_CELLS).index(name))
+    switch = draw_switch_steps(unwrapped.num_envs, warmup, period_steps, generator)
+    push_step = window_steps(2.0, dt) if cell["push"] else None
+    recorder = TransitionRecorder(switch, dt, after, joint_names, push_step=push_step)
+    if recorder.last_step() + 1 >= int(unwrapped.max_episode_length):
+        raise SystemExit("transition cell %s needs %d steps, the episode times out at %d"
+                         % (name, recorder.last_step() + 1, int(unwrapped.max_episode_length)))
+    robot = unwrapped.scene["robot"]
+    sensor = unwrapped.scene.sensors["contact_forces"]
+    contact_ids = sensor.find_bodies(["l_foot", "r_foot"], preserve_order=True)[0]
+    foot_ids = robot.find_bodies(["l_foot", "r_foot"], preserve_order=True)[0]
+    corners = torch.as_tensor(unwrapped.cfg.foot_sole_corners, dtype=torch.float32, device=device)
+    mass = robot.data.default_mass.to(device)
+    mass_weights = mass / mass.sum(dim=1, keepdim=True)
+    period = _live_gait_period(unwrapped)
+    target = torch.tensor(cell["command"], device=device).expand(unwrapped.num_envs, -1)
+    switch_dev = switch.to(device)
+    forced[:] = target
+    term.vel_command_b.copy_(forced)
+    env.reset()
+    obs = env.get_observations()
+    for step in range(recorder.last_step() + 1):
+        forced[:] = torch.where((step >= switch_dev).unsqueeze(1), torch.zeros_like(target), target)
+        actions = policy(obs)
+        obs, _, _, _ = env.step(actions)
+        failed = torch.zeros(unwrapped.num_envs, dtype=torch.bool, device=device)
+        for term_name in fail_terms:
+            failed |= unwrapped.termination_manager.get_term(term_name)
+        contact, error, foot_delta, com_offset = _transition_state(
+            unwrapped, contact_ids, foot_ids, joint_ids, corners, mass_weights)
+        phase = gait_clock_phase(unwrapped, period)
+        recorder.update(step, phase, failed, contact, error, foot_delta, com_offset, reference_width)
+        due = recorder.push_due(step)
+        if bool(due.any()):
+            push_standing_by_setting_velocity(unwrapped, torch.nonzero(due).flatten().to(device), push_velocity_range)
+    row = recorder.summary()
+    row["command"] = list(cell["command"])
+    row["push"] = bool(cell["push"])
+    row["switch_step_range"] = [int(switch.min()), int(switch.max())]
+    print(
+        "TRANSITION %-12s cmd %+.2f/%+.2f/%+.2f push %d | valid %d falls %.3f | t_ds p50 %.2f p95 %.2f s | "
+        "td_err p95 %.1f deg >25 %.3f | fore-aft p50 %.3f p95 %.3f m | lifts>1s %.3f | com p95 %.3f m"
+        % (name, *cell["command"], int(cell["push"]), row["valid_envs"], row["fall_fraction"],
+           row["time_to_double_support_s"]["p50"], row["time_to_double_support_s"]["p95"],
+           row["peak_error_touchdown_deg_max"]["p95"], row["peak_error_touchdown_over_25deg"],
+           row["fore_aft_offset_2s_m"]["p50"], row["fore_aft_offset_2s_m"]["p95"],
+           row["re_step_fraction"], row["com_support_dist_2s_m"]["p95"]),
+        flush=True,
+    )
+    return row
+
+
 def main():
+    wanted = expand_cells(args_cli.cells.split(",") if args_cli.cells else list(CELLS))
+    unknown = [name for name in wanted if name not in CELLS and name not in TRANSITION_CELLS]
+    if unknown:
+        raise SystemExit("unknown cells: %s" % unknown)
+    transition_wanted = [name for name in wanted if name in TRANSITION_CELLS]
+    if transition_wanted and not args_cli.no_push:
+        raise SystemExit("transition cells need --no_push: their only push is the scheduled one of the *_push variants")
     env_cfg = parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs)
     com_template = copy.deepcopy(getattr(env_cfg.events, BASE_COM_EVENT, None))
     load_template = copy.deepcopy(getattr(env_cfg.events, BASE_LOAD_EVENT, None))
@@ -461,6 +586,13 @@ def main():
         print(f"[eval] training config: {apply_training_env_cfg(env_cfg, args_cli.checkpoint)}")
         env_cfg.scene.num_envs = args_cli.num_envs
     env_cfg.seed = args_cli.seed
+    push_standing_template = getattr(env_cfg.events, "push_standing", None)
+    push_velocity_range = None
+    if push_standing_template is not None:
+        push_velocity_range = {k: [float(v[0]), float(v[1])]
+                               for k, v in push_standing_template.params["velocity_range"].items()}
+    if transition_wanted and any(name.endswith("_push") for name in transition_wanted) and push_velocity_range is None:
+        raise SystemExit("push transition cells need the push_standing event's velocity_range")
     pushes_disabled = []
     if args_cli.no_push:
         for name in ("push_robot", "push_standing"):
@@ -612,6 +744,17 @@ def main():
         "applied": applied,
         "config_mismatch": check_training_config(checkpoint, applied, strict=args_cli.strict),
     }
+    period_steps = None
+    reference_width = float("nan")
+    if transition_wanted:
+        period_steps = steps_per_period(applied["gait_period_s"], applied["step_dt"])
+        width_cfg = unwrapped.reward_manager.get_term_cfg("feet_width") if "feet_width" in applied["reward_terms"] else None
+        if width_cfg is not None and "standing_width" in (width_cfg.params or {}):
+            reference_width = float(width_cfg.params["standing_width"])
+        meta["transition"] = transition_definition(
+            window_steps(args_cli.transition_warmup_s, applied["step_dt"]),
+            window_steps(args_cli.transition_after_s, applied["step_dt"]),
+            period_steps, applied["step_dt"], push_velocity_range, reference_width)
     for line in meta["config_mismatch"]:
         print("CONFIG MISMATCH %s" % line, flush=True)
     if meta["config_mismatch"] and args_cli.strict:
@@ -626,11 +769,16 @@ def main():
             flush=True,
         )
 
-    wanted = args_cli.cells.split(",") if args_cli.cells else list(CELLS)
     results = {}
     inference = torch.inference_mode()
     inference.__enter__()
     for name in wanted:
+        if name in TRANSITION_CELLS:
+            results[name] = run_transition_cell(
+                name, env, unwrapped, policy, term, forced, joint_names, joint_ids,
+                [t for t in unwrapped.termination_manager.active_terms if t != "time_out"],
+                period_steps, push_velocity_range, reference_width, args_cli.seed)
+            continue
         command = CELLS[name]
         forced[:] = torch.tensor(command, device=unwrapped.device)
         term.vel_command_b.copy_(forced)

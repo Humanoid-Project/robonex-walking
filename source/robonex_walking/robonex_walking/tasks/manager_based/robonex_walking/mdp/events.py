@@ -1,3 +1,5 @@
+import math
+
 import torch
 
 from isaaclab.assets import Articulation
@@ -46,6 +48,27 @@ def push_standing_by_setting_velocity(
         low, high = velocity_range.get(key, (0.0, 0.0))
         vel_w[:, index] += torch.empty(standing.numel(), device=vel_w.device).uniform_(low, high)
     asset.write_root_velocity_to_sim(vel_w, env_ids=standing)
+
+
+def randomize_gait_clock_offset(
+    env,
+    env_ids: torch.Tensor | None,
+    offset_range: tuple[float, float] = (0.0, 0.0),
+):
+    low, high = float(offset_range[0]), float(offset_range[1])
+    if not (math.isfinite(low) and math.isfinite(high)) or not 0.0 <= low <= high <= 1.0:
+        raise ValueError(f"gait clock offset_range must satisfy 0 <= low <= high <= 1, got {offset_range}")
+    offset = getattr(env, "_gait_clock_offset", None)
+    if offset is None:
+        if low == 0.0 and high == 0.0:
+            return
+        offset = torch.zeros(env.num_envs, device=env.device)
+        env._gait_clock_offset = offset
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=offset.device)
+    env_ids = torch.as_tensor(env_ids, device=offset.device)
+    draw = low + (high - low) * torch.rand(len(env_ids), device=offset.device)
+    offset[env_ids] = torch.remainder(draw, 1.0).to(offset.dtype)
 
 
 def randomize_joint_coulomb_friction(

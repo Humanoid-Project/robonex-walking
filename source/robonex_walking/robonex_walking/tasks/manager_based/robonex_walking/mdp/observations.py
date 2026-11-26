@@ -12,6 +12,14 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+def gait_clock_phase(env: ManagerBasedRLEnv, period: float) -> torch.Tensor:
+    phase = (env.episode_length_buf * env.step_dt) % period / period
+    offset = getattr(env, "_gait_clock_offset", None)
+    if offset is not None:
+        phase = (phase + offset) % 1.0
+    return phase
+
+
 def gait_phase(
     env: ManagerBasedRLEnv,
     period: float,
@@ -35,7 +43,7 @@ def gait_phase(
     the cue instead of asking a later penalty to out-shout it. The width stays 2,
     so the deploy observation contract is unchanged.
     """
-    global_phase = (env.episode_length_buf * env.step_dt) % period / period
+    global_phase = gait_clock_phase(env, period)
     phase = torch.zeros(env.num_envs, 2, device=env.device)
     phase[:, 0] = torch.sin(global_phase * torch.pi * 2.0)
     phase[:, 1] = torch.cos(global_phase * torch.pi * 2.0)

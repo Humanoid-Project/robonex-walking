@@ -21,6 +21,7 @@ from isaaclab.envs.mdp.events import push_by_setting_velocity as _push_by_settin
 from .events import push_standing_by_setting_velocity as _push_standing_by_setting_velocity
 
 from .joint_speed import joint_speed_excess
+from .observations import gait_clock_phase
 from .tracking import SentTrackingGateStats, sent_tracking_error
 
 if TYPE_CHECKING:
@@ -130,6 +131,36 @@ def _recovery_quiet(
         state["settle"] = torch.where(calm & ~fresh, state["settle"] + env.step_dt, torch.zeros_like(state["settle"]))
         state["open"] = state["open"] & (state["settle"] < settle_s - 1.0e-6) & (state["since_fast"] < max_open_s - 1.0e-6)
     return (~state["open"]).float()
+
+
+def _stop_grace(env: ManagerBasedRLEnv, command_name: str, command_deadband: float, grace_s: float) -> torch.Tensor:
+    if not math.isfinite(grace_s) or grace_s < 0:
+        raise ValueError("stop_grace_s must be finite and nonnegative")
+    step = int(env.common_step_counter)
+    states = getattr(env, "_stop_grace_states", None)
+    if states is None:
+        states = env._stop_grace_states = {}
+    key = (str(command_name), float(command_deadband))
+    state = states.get(key)
+    if state is None or state["standing"].shape[0] != env.num_envs:
+        state = states[key] = {
+            "step": -1,
+            "standing": torch.ones(env.num_envs, dtype=torch.bool, device=env.device),
+            "since": torch.full((env.num_envs,), -1, dtype=torch.long, device=env.device),
+        }
+    if state["step"] != step:
+        state["step"] = step
+        command = env.command_manager.get_command(command_name)
+        standing = torch.linalg.norm(command, dim=1) < command_deadband
+        fresh = env.episode_length_buf <= 1
+        switched = standing & ~state["standing"] & ~fresh
+        since = torch.where(state["since"] >= 0, state["since"] + 1, state["since"])
+        since = torch.where(switched, torch.zeros_like(since), since)
+        since = torch.where(fresh | ~standing, torch.full_like(since, -1), since)
+        state["since"] = since
+        state["standing"] = standing
+    steps = int(round(grace_s / env.step_dt))
+    return (state["since"] >= 0) & (state["since"] < steps)
 
 
 def track_lin_vel_x_exp(
@@ -487,6 +518,7 @@ def stand_still_pose_l1(
     command_deadband: float = 0.05,
     max_abs: float = 1.0,
     recovery_gate: tuple[float, float, float] | None = None,
+    stop_grace_s: float = 0.0,
 ) -> torch.Tensor:
     """Penalize deviation from the default pose while the velocity command is zero.
 
@@ -502,6 +534,8 @@ def stand_still_pose_l1(
     penalty = deviation * (torch.linalg.norm(command, dim=1) < command_deadband)
     if recovery_gate is not None:
         penalty = penalty * _recovery_quiet(env, *recovery_gate)
+    if stop_grace_s:
+        penalty = torch.where(_stop_grace(env, command_name, command_deadband, stop_grace_s), torch.zeros_like(penalty), penalty)
     return penalty
 
 
@@ -613,6 +647,7 @@ def stand_still_airborne(
     command_deadband: float = 0.05,
     threshold: float = 1.0,
     recovery_gate: tuple[float, float, float] | None = None,
+    stop_grace_s: float = 0.0,
 ) -> torch.Tensor:
     """Penalize not being in double stance while the velocity command is zero.
 
@@ -625,6 +660,8 @@ def stand_still_airborne(
     penalty = not_double * (torch.linalg.norm(command, dim=1) < command_deadband)
     if recovery_gate is not None:
         penalty = penalty * _recovery_quiet(env, *recovery_gate)
+    if stop_grace_s:
+        penalty = torch.where(_stop_grace(env, command_name, command_deadband, stop_grace_s), torch.zeros_like(penalty), penalty)
     return penalty
 
 
@@ -875,7 +912,7 @@ def feet_clearance_clock_l2(
     corner_z = _quat_apply(quat.expand(-1, -1, corners.shape[2], -1), corners)[..., 2]
     foot_height = (body_pos[:, :, 2].unsqueeze(-1) + corner_z).amin(dim=-1)
     foot_height = foot_height - env.scene.env_origins[:, 2].unsqueeze(1)
-    global_phase = ((env.episode_length_buf * env.step_dt) % period / period).unsqueeze(1)
+    global_phase = gait_clock_phase(env, period).unsqueeze(1)
     leg_phase = torch.cat([(global_phase + value) % 1.0 for value in offset], dim=-1)
     swing = torch.clamp(leg_phase - stance_fraction, min=0.0) / (1.0 - stance_fraction)
     window = torch.square(torch.sin(math.pi * swing))
@@ -909,7 +946,7 @@ def feet_gait_centred(
         sensor.data.current_contact_time[:, sensor_cfg.body_ids], nan=0.0, posinf=0.0, neginf=0.0
     )
     is_contact = contact_time > 0.0
-    global_phase = ((env.episode_length_buf * env.step_dt) % period / period).unsqueeze(1)
+    global_phase = gait_clock_phase(env, period).unsqueeze(1)
     leg_phase = torch.cat([(global_phase + value) % 1.0 for value in offset], dim=-1)
 
     matched = torch.zeros(env.num_envs, device=env.device)
