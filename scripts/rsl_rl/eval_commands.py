@@ -527,8 +527,9 @@ def run_transition_cell(name, env, unwrapped, policy, term, forced, joint_names,
                          % (name, recorder.last_step() + 1, int(unwrapped.max_episode_length)))
     robot = unwrapped.scene["robot"]
     sensor = unwrapped.scene.sensors["contact_forces"]
-    contact_ids = sensor.find_bodies(["l_foot", "r_foot"], preserve_order=True)[0]
-    foot_ids = robot.find_bodies(["l_foot", "r_foot"], preserve_order=True)[0]
+    feet = list(getattr(unwrapped.cfg, "feet_body_names", ("l_foot", "r_foot")))
+    contact_ids = sensor.find_bodies(feet, preserve_order=True)[0]
+    foot_ids = robot.find_bodies(feet, preserve_order=True)[0]
     corners = torch.as_tensor(unwrapped.cfg.foot_sole_corners, dtype=torch.float32, device=device)
     mass = robot.data.default_mass.to(device)
     mass_weights = mass / mass.sum(dim=1, keepdim=True)

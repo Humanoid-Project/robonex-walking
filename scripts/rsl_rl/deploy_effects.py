@@ -85,6 +85,21 @@ def _trained_value(value):
     return value
 
 
+def _friction_by_joint(term, levels, actuated):
+    by_name = {joint.model_name: joint.motor_model for joint in actuated}
+    names = list(term.params.get("friction_range", {}) or by_name)
+
+    def model(name):
+        if name in by_name:
+            return by_name[name]
+        for prefix, short in (("left_", "l_"), ("right_", "r_")):
+            if name.startswith(prefix) and short + name[len(prefix):] in by_name:
+                return by_name[short + name[len(prefix):]]
+        raise KeyError(f"no motor model for joint {name!r}")
+
+    return {name: (levels[model(name)],) * 2 for name in names}
+
+
 def pin_joint_friction(env_cfg, levels, func):
     from robonex_common.joints import ACTUATED_JOINTS
 
@@ -98,7 +113,7 @@ def pin_joint_friction(env_cfg, levels, func):
     term.func = func
     term.params = {
         "asset_cfg": term.params["asset_cfg"],
-        "friction_range": {joint.model_name: (levels[joint.motor_model],) * 2 for joint in ACTUATED_JOINTS},
+        "friction_range": _friction_by_joint(term, levels, ACTUATED_JOINTS),
         "static_ratio": 1.0,
         "viscous": 0.0,
     }
