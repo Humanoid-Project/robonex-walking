@@ -1,12 +1,20 @@
 import dataclasses
 
 from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
+from . import mdp
 from . import robot_contract_v3 as v3
 from .robonex_walking_v2_env_cfg import CONTACT_FORCE_LIMIT_BW, GRAVITY, RoboNexWalkingV2EduEnvCfg
 
 _RENAME = dict(v3.V2_TO_V3)
+
+NECK_TARGET_MARGIN_RAD = 0.05
+NECK_TARGET_RANGE_SCALE = 0.0
+NECK_TARGET_RESAMPLE_S = (1.0, 3.0)
+NECK_TARGET_BLEND_S = 1.0
 
 
 def _rename(obj, seen=None):
@@ -96,6 +104,26 @@ class RoboNexWalkingV3EnvCfg(RoboNexWalkingV2EduEnvCfg):
         self.foot_sole_corners = v3.FOOT_SOLE_CORNERS
         self.rewards.feet_contact_force.params["threshold"] = round(CONTACT_FORCE_LIMIT_BW * v3.MASS_KG * GRAVITY, 1)
         self._apply_w197_recipe()
+        if self.model_variant == "full":
+            self.events.neck_target = self._neck_target_term()
+
+    def _neck_target_term(self):
+        step_s = self.sim.dt * self.decimation
+        return EventTerm(
+            func=mdp.randomize_neck_target,
+            mode="interval",
+            interval_range_s=(step_s, step_s),
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=list(v3.NECK_JOINTS), preserve_order=True),
+                "limits": {name: tuple(lim) for name, lim in v3.NECK_LIMITS.items()},
+                "margin": NECK_TARGET_MARGIN_RAD,
+                "range_scale": NECK_TARGET_RANGE_SCALE,
+                "resample_s": NECK_TARGET_RESAMPLE_S,
+                "blend_s": NECK_TARGET_BLEND_S,
+                "start_at_default": False,
+                "write_state_at_reset": True,
+            },
+        )
 
     def _apply_w197_recipe(self) -> None:
         r = self.rewards

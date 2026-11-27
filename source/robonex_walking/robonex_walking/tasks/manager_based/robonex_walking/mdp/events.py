@@ -234,3 +234,127 @@ def apply_sustained_base_load(
         body_ids=body_ids,
         env_ids=env_ids,
     )
+
+
+def neck_target_bounds(names, limits, margin, range_scale):
+    unknown = sorted(set(limits) - set(names))
+    missing = [name for name in names if name not in limits]
+    if unknown or missing:
+        raise ValueError(f"neck target limits keys must be the event's joints: unknown {unknown}, missing {missing}")
+    scale, margin = float(range_scale), float(margin)
+    if not (math.isfinite(scale) and 0.0 <= scale <= 1.0):
+        raise ValueError(f"neck target range_scale must be in [0, 1], got {range_scale}")
+    if not (math.isfinite(margin) and margin >= 0.0):
+        raise ValueError(f"neck target margin must be finite and >= 0, got {margin}")
+    lower = torch.tensor([float(limits[name][0]) for name in names]) + margin
+    upper = torch.tensor([float(limits[name][1]) for name in names]) - margin
+    if not bool(torch.all(torch.isfinite(lower)) and torch.all(torch.isfinite(upper))) or bool(torch.any(upper <= lower)):
+        raise ValueError(f"neck target limits {limits} leave no range after margin {margin}")
+    mid = 0.5 * (lower + upper)
+    half = 0.5 * (upper - lower) * scale
+    return mid - half, mid + half
+
+
+def neck_target_timing(resample_s, blend_s):
+    low, high = float(resample_s[0]), float(resample_s[1])
+    blend = float(blend_s)
+    if not (math.isfinite(low) and math.isfinite(high)) or not 0.0 < low <= high:
+        raise ValueError(f"neck target resample_s must satisfy 0 < low <= high, got {resample_s}")
+    if not (math.isfinite(blend) and blend >= 0.0):
+        raise ValueError(f"neck target blend_s must be finite and >= 0, got {blend_s}")
+    return low, high, blend
+
+
+class randomize_neck_target(ManagerTermBase):
+    def __init__(self, cfg, env):
+        super().__init__(cfg, env)
+        self.prev = None
+
+    def _setup(self, asset_cfg, limits, margin, range_scale, resample_s, blend_s):
+        if float(range_scale) == 0.0:
+            return None
+        asset: Articulation = self._env.scene[asset_cfg.name]
+        joint_ids = asset_cfg.joint_ids
+        if isinstance(joint_ids, slice):
+            joint_ids = list(range(asset.num_joints))[joint_ids]
+        joint_ids = [int(i) for i in joint_ids]
+        names = [asset.joint_names[i] for i in joint_ids]
+        low, high = neck_target_bounds(names, limits, margin, range_scale)
+        neck_target_timing(resample_s, blend_s)
+        if self.prev is None:
+            shape = (self._env.num_envs, len(joint_ids))
+            device = asset.device
+            self.prev = torch.zeros(shape, device=device)
+            self.goal = torch.zeros(shape, device=device)
+            self.target = torch.zeros(shape, device=device)
+            self.elapsed = torch.zeros(self._env.num_envs, device=device)
+            self.period = torch.zeros(self._env.num_envs, device=device)
+        return asset, joint_ids, low.to(self.prev.device), high.to(self.prev.device)
+
+    def _ids(self, env_ids):
+        if env_ids is None:
+            return torch.arange(self._env.num_envs, device=self.prev.device)
+        return torch.as_tensor(env_ids, dtype=torch.long, device=self.prev.device)
+
+    def _draw(self, count, low, high):
+        return low + (high - low) * torch.rand(count, low.numel(), device=low.device)
+
+    def _period(self, count, resample_s):
+        low, high = float(resample_s[0]), float(resample_s[1])
+        return low + (high - low) * torch.rand(count, device=self.prev.device)
+
+    def reset(self, env_ids=None):
+        params = self.cfg.params
+        setup = self._setup(params["asset_cfg"], params["limits"], params.get("margin", 0.05), params.get("range_scale", 0.0),
+                            params.get("resample_s", (1.0, 3.0)), params.get("blend_s", 1.0))
+        if setup is None:
+            return
+        asset, joint_ids, low, high = setup
+        ids = self._ids(env_ids)
+        if params.get("start_at_default", False):
+            start = asset.data.default_joint_pos[ids][:, joint_ids].to(self.prev.dtype)
+            self.target[ids] = start
+            self.goal[ids] = start
+        else:
+            self.target[ids] = self._draw(len(ids), low, high)
+            self.goal[ids] = self._draw(len(ids), low, high)
+        self.prev[ids] = self.target[ids]
+        self.elapsed[ids] = 0.0
+        self.period[ids] = self._period(len(ids), params.get("resample_s", (1.0, 3.0)))
+        target = self.target[ids]
+        if params.get("write_state_at_reset", True):
+            asset.write_joint_state_to_sim(target, torch.zeros_like(target), joint_ids=joint_ids, env_ids=ids)
+        asset.set_joint_position_target(target, joint_ids=joint_ids, env_ids=ids)
+
+    def __call__(
+        self,
+        env,
+        env_ids: torch.Tensor | None,
+        asset_cfg: SceneEntityCfg,
+        limits: dict[str, tuple[float, float]],
+        margin: float = 0.05,
+        range_scale: float = 0.0,
+        resample_s: tuple[float, float] = (1.0, 3.0),
+        blend_s: float = 1.0,
+        start_at_default: bool = False,
+        write_state_at_reset: bool = True,
+    ):
+        setup = self._setup(asset_cfg, limits, margin, range_scale, resample_s, blend_s)
+        if setup is None:
+            return
+        asset, joint_ids, low, high = setup
+        ids = self._ids(env_ids)
+        self.elapsed[ids] += float(env.step_dt)
+        due = ids[self.elapsed[ids] >= self.period[ids]]
+        if due.numel() > 0:
+            self.prev[due] = self.target[due]
+            self.goal[due] = self._draw(len(due), low, high)
+            self.elapsed[due] = 0.0
+            self.period[due] = self._period(len(due), resample_s)
+        blend = float(blend_s)
+        if blend > 0.0:
+            alpha = torch.clamp(self.elapsed[ids] / blend, 0.0, 1.0).unsqueeze(1)
+        else:
+            alpha = torch.ones(len(ids), 1, device=self.prev.device)
+        self.target[ids] = self.prev[ids] + (self.goal[ids] - self.prev[ids]) * alpha
+        asset.set_joint_position_target(self.target[ids], joint_ids=joint_ids, env_ids=ids)

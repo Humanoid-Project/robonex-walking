@@ -88,6 +88,7 @@ for _name in LEG_JOINTS:
     v2_lim = v2.JOINT_LIMITS[next(k for k, v in V2_TO_V3.items() if v == _name)]
     if max(abs(a - b) for a, b in zip(_limits[_name], v2_lim)) > 1e-9:
         raise RuntimeError(f"{_name}: ver3 limits {_limits[_name]} differ from ver2 {v2_lim}")
+NECK_LIMITS = {name: _limits[name] for name in NECK_JOINTS}
 
 
 def _isaac_passive_name(name):
