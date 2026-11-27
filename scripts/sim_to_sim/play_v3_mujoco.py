@@ -185,9 +185,24 @@ def _func_name(term):
     return str(term.get("func") or term.get("class_type") or "").split(":")[-1]
 
 
+def resolve_leg_order(run_dir, constants):
+    path = Path(run_dir) / "params" / "joint_order.json"
+    if path.is_file():
+        order, source = tuple(json.loads(path.read_text(encoding="utf-8"))["action_joint_names"]), str(path)
+    else:
+        order = tuple(json.loads(Path(constants).read_text(encoding="utf-8"))["policy_joint_order"])
+        source = f"{constants} policy_joint_order"
+    if order != ISAAC_LEG_ARTICULATION_ORDER:
+        diff = [(i, a, e) for i, (a, e) in enumerate(zip(order, ISAAC_LEG_ARTICULATION_ORDER)) if a != e]
+        raise RuntimeError(f"leg joint order from {source} {order} differs from the player's articulation order "
+                           f"{ISAAC_LEG_ARTICULATION_ORDER} (index, got, expected: {diff or 'lengths differ'})")
+    return order, source
+
+
 class RunContract:
-    def __init__(self, run_dir):
+    def __init__(self, run_dir, leg_order=ISAAC_LEG_ARTICULATION_ORDER):
         self.run_dir = Path(run_dir)
+        self.leg_order = tuple(leg_order)
         env = load_yaml(self.run_dir / "params" / "env.yaml")
         agent = load_yaml(self.run_dir / "params" / "agent.yaml")
         self.env, self.agent = env, agent
@@ -291,13 +306,12 @@ class RunContract:
         self.train_friction = {n: tuple(frictions[n]) for n in self.joint_order if n in frictions}
         self.observation_size = sum(s for _, s in self.terms) * self.history_length
 
-    @staticmethod
-    def _resolve_order(names, preserve_order):
+    def _resolve_order(self, names, preserve_order):
         if preserve_order:
             return tuple(names)
-        if set(names) != set(ISAAC_LEG_ARTICULATION_ORDER):
+        if set(names) != set(self.leg_order):
             raise RuntimeError(f"joint set {names} is not the 12 ver3 leg joints; articulation order unknown")
-        return ISAAC_LEG_ARTICULATION_ORDER
+        return self.leg_order
 
 
 def slew_limit_step(position, velocity, target, dt, max_speed, max_accel):
@@ -776,11 +790,12 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
     import mujoco
-    contract = RunContract(args.checkpoint.parent)
-    state = load_state_dict(args.checkpoint)
-    actor = ActorMLP(state, contract.agent, contract.observation_size, 12)
     root = resolve_repo(DESCRIPTION_REPO_NAMES, "ROBONEX_DESCRIPTION_ROOT", args.description_root,
                         anchors=(Path(__file__),))
+    leg_order, leg_order_source = resolve_leg_order(args.checkpoint.parent, root / "ver3" / "ver3_constants.json")
+    contract = RunContract(args.checkpoint.parent, leg_order)
+    state = load_state_dict(args.checkpoint)
+    actor = ActorMLP(state, contract.agent, contract.observation_size, 12)
     scene = root / "ver3" / "mujoco" / "robot" / args.scene / "scene.xml"
     model = mujoco.MjModel.from_xml_path(str(scene))
     data = mujoco.MjData(model)
@@ -807,6 +822,7 @@ def main(argv=None):
         "nu": int(model.nu), "held_upper_actuators": len(plant.upper_actuators),
         "observation_terms": [f"{n}:{s}x{contract.history_length}" for n, s in contract.terms],
         "observation_size": contract.observation_size, "joint_order": list(contract.joint_order),
+        "joint_order_source": leg_order_source,
         "slew": bool(slew), "joint_obs_delay_policy_steps": joint_delay, "imu_delay_mujoco_steps": imu_delay,
         "joint_friction": friction, "runner_action_clip": contract.runner_clip,
         "command": [args.vx, args.vy, args.wz] if not args.scenario else args.scenario,

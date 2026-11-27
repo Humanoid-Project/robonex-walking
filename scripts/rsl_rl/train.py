@@ -77,11 +77,13 @@ if version.parse(installed_version) < version.parse(RSL_RL_VERSION):
 
 """Rest everything follows."""
 
+import json
 import logging
 import math
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 
 import gymnasium as gym
 import torch
@@ -107,6 +109,7 @@ from isaaclab_tasks.utils.hydra import hydra_task_config
 logger = logging.getLogger(__name__)
 
 import robonex_walking.tasks  # noqa: F401
+from deploy_effects import robot_identity
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -299,6 +302,47 @@ class DiagnosticOnPolicyRunner(OnPolicyRunner):
             self.writer.add_scalar(name, value, locs["it"])
 
 
+def joint_order_record(task, usd_path, action_joint_names, articulation_joint_names, body_names):
+    return {
+        "task": task,
+        "usd_path": None if usd_path is None else str(usd_path),
+        "action_joint_names": [str(n) for n in action_joint_names],
+        "articulation_joint_names": [str(n) for n in articulation_joint_names],
+        "body_names": [str(n) for n in body_names],
+    }
+
+
+def ver3_constants_path(usd_path):
+    for parent in Path(str(usd_path)).parents:
+        if parent.name == "ver3":
+            return parent / "ver3_constants.json"
+    return None
+
+
+def policy_order_problem(record):
+    identity = robot_identity(record["usd_path"])
+    if identity is None or identity[0] != "ver3":
+        return None
+    constants = ver3_constants_path(record["usd_path"])
+    if constants is None or not constants.is_file():
+        return "ver3 robot but no ver3_constants.json above %s; cannot check the policy joint order" % record["usd_path"]
+    expected = list(json.loads(constants.read_text())["policy_joint_order"])
+    actual = list(record["action_joint_names"])
+    if actual != expected:
+        diff = [(i, a, e) for i, (a, e) in enumerate(zip(actual, expected)) if a != e]
+        return "action joint order %s differs from %s policy_joint_order %s (index, got, expected: %s)" % (
+            actual, constants, expected, diff or "lengths %d vs %d" % (len(actual), len(expected)))
+    return None
+
+
+def write_joint_order(log_dir, record):
+    path = os.path.join(log_dir, "params", "joint_order.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(record, handle, indent=2)
+    return path
+
+
 @hydra_task_config(args_cli.task, args_cli.agent)
 def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agent_cfg: RslRlBaseRunnerCfg):
     """Train with RSL-RL agent."""
@@ -360,6 +404,22 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
     # convert to single-agent instance if required by the RL algorithm
     if isinstance(env.unwrapped, DirectMARLEnv):
         env = multi_agent_to_single_agent(env)
+
+    if isinstance(env.unwrapped.cfg, ManagerBasedRLEnvCfg):
+        robot = env.unwrapped.scene["robot"]
+        record = joint_order_record(
+            args_cli.task,
+            getattr(getattr(env_cfg.scene.robot, "spawn", None), "usd_path", None),
+            env.unwrapped.action_manager.get_term("joint_pos")._joint_names,
+            robot.joint_names,
+            robot.body_names,
+        )
+        problem = policy_order_problem(record)
+        if problem is not None:
+            env.close()
+            raise SystemExit("[train] " + problem)
+        if not args_cli.distributed or app_launcher.local_rank == 0:
+            print(f"[INFO] Policy joint order written to: {write_joint_order(log_dir, record)}")
 
     # save resume path before creating a new log_dir
     if agent_cfg.resume or agent_cfg.algorithm.class_name == "Distillation":
