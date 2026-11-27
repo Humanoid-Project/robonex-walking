@@ -3,6 +3,7 @@ import math
 import torch
 
 from isaaclab.assets import Articulation
+from isaaclab.envs.mdp import events as _isaaclab_events
 from isaaclab.managers import ManagerTermBase, SceneEntityCfg
 from isaaclab.utils.version import get_isaac_sim_version
 
@@ -373,3 +374,21 @@ class randomize_neck_target(ManagerTermBase):
             alpha = torch.ones(len(ids), 1, device=self.prev.device)
         self.target[ids] = self.prev[ids] + (self.goal[ids] - self.prev[ids]) * alpha
         asset.set_joint_position_target(self.target[ids], joint_ids=joint_ids, env_ids=ids)
+
+
+class randomize_payload_mass(_isaaclab_events.randomize_rigid_body_mass):
+    def __call__(
+        self,
+        env,
+        env_ids: torch.Tensor | None,
+        asset_cfg: SceneEntityCfg,
+        mass_distribution_params: tuple[float, float],
+        operation: str,
+        distribution: str = "uniform",
+        recompute_inertia: bool = True,
+        min_mass: float = 1e-6,
+    ):
+        if operation == "add" and all(float(v) == 0.0 for v in mass_distribution_params):
+            return
+        super().__call__(env, env_ids, asset_cfg, mass_distribution_params, operation, distribution, recompute_inertia,
+                         min_mass)

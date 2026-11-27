@@ -25,6 +25,9 @@ UPPER_GROUPS = {"upper_" + r for r in ("shoulder_pitch", "shoulder_roll", "shoul
                                        "neck_yaw", "neck_pitch")}
 NECK_RANGES = {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)}
 INIT = "scene.robot.init_state.joint_pos"
+V3_INERT = ("events.hand_payload.", "rewards.track_ang_vel_z_cycle.")
+ARMS = [f"{side}_{role}_joint" for side in ("left", "right")
+        for role in ("shoulder_pitch", "shoulder_roll", "shoulder_yaw", "elbow", "wrist_roll")]
 USD = "scene.robot.spawn.usd_path"
 
 
@@ -145,6 +148,22 @@ class V3CfgBuildTest(unittest.TestCase):
 
     def test_v2_mapped_and_v3_legs_differ_only_as_registered(self):
         got = {k: v for k, v in diff(rename(self.v2, self.rename), self.legs).items() if not k.startswith(INIT)}
+        inert = {k: got.pop(k) for k in [k for k in got if k.startswith(V3_INERT)]}
+        self.assertTrue(all(old == "<absent>" for old, _ in inert.values()))
+        self.assertEqual(inert["events.hand_payload.mode"][1], "reset")
+        self.assertTrue(inert["events.hand_payload.func"][1].endswith("mdp.events:randomize_payload_mass"))
+        self.assertEqual(inert["events.hand_payload.params.operation"][1], "add")
+        self.assertEqual(inert["events.hand_payload.params.mass_distribution_params"][1], (0.0, 0.0))
+        self.assertEqual(inert["events.hand_payload.params.asset_cfg.body_names"][1],
+                         ["left_wrist_roll_link", "right_wrist_roll_link"])
+        self.assertTrue(inert["rewards.track_ang_vel_z_cycle.func"][1].endswith("mdp.rewards:track_ang_vel_z_cycle_exp"))
+        self.assertEqual(inert["rewards.track_ang_vel_z_cycle.weight"][1], 0.0)
+        self.assertEqual(inert["rewards.track_ang_vel_z_cycle.params.std"][1], 0.25)
+        self.assertEqual(inert["rewards.track_ang_vel_z_cycle.params.window_steps"][1], 40)
+        self.assertEqual(len(inert), 21)
+        for term in ("hand_payload", "track_ang_vel_z_cycle"):
+            self.assertNotIn(term, self.v2["events"])
+            self.assertNotIn(term, self.v2["rewards"])
         expected = expected_v2_to_legs()
         self.assertEqual(sorted(got), sorted(expected))
         self.assertEqual(len(got), 29)
@@ -162,7 +181,7 @@ class V3CfgBuildTest(unittest.TestCase):
         self.assertEqual(got.pop("model_variant"), ("legs", "full"))
         self.assertEqual(got.pop(USD)[1],
                          "robonex-description/ver3/isaac/full/closed_loop_mesh/robonex_ver3_full_closed_loop_mesh.usd")
-        groups, init, neck, other = set(), set(), {}, []
+        groups, init, neck, arm, other = set(), set(), {}, {}, []
         for key, (legs, full) in got.items():
             if key.startswith("scene.robot.actuators.upper_") and legs == "<absent>":
                 groups.add(key.split(".")[3])
@@ -170,6 +189,8 @@ class V3CfgBuildTest(unittest.TestCase):
                 init.add(key[len(INIT) + 1:])
             elif key.startswith("events.neck_target.") and legs == "<absent>":
                 neck[key[len("events.neck_target."):]] = full
+            elif key.startswith("events.arm_target.") and legs == "<absent>":
+                arm[key[len("events.arm_target."):]] = full
             else:
                 other.append(key)
         self.assertEqual(other, [])
@@ -183,6 +204,16 @@ class V3CfgBuildTest(unittest.TestCase):
             self.assertEqual(neck[f"params.ranges.{name}"], rng)
         self.assertNotIn("neck_target", self.legs["events"])
         self.assertNotIn("neck_target", self.v2["events"])
+        self.assertEqual(arm["mode"], "interval")
+        self.assertEqual(arm["params.range_scale"], 0.0)
+        self.assertTrue(arm["func"].endswith("mdp.events:randomize_neck_target"))
+        self.assertEqual(arm["params.asset_cfg.joint_names"], ARMS)
+        limits = self.constants["provisional_limits"]
+        for name in ARMS:
+            self.assertEqual(arm[f"params.limits.{name}"], tuple(limits[name]))
+        self.assertNotIn("params.ranges", arm)
+        self.assertNotIn("arm_target", self.legs["events"])
+        self.assertNotIn("arm_target", self.v2["events"])
 
 
 if __name__ == "__main__":

@@ -382,6 +382,56 @@ class track_lin_vel_y_cycle_exp(ManagerTermBase):
         return torch.exp(-torch.square(mean) / std**2)
 
 
+class track_ang_vel_z_cycle_exp(ManagerTermBase):
+    def __init__(self, cfg, env: ManagerBasedRLEnv):
+        super().__init__(cfg, env)
+        self._buf = None
+        self._count = None
+        self._cmd = None
+        self._idx = 0
+        self._step = None
+
+    def reset(self, env_ids=None):
+        if self._buf is None:
+            return
+        if env_ids is None:
+            self._buf.zero_()
+            self._count.zero_()
+            return
+        self._buf[env_ids] = 0.0
+        self._count[env_ids] = 0
+
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        std: float,
+        window_steps: int = 40,
+        max_error: float = 2.0,
+        command_name: str = "base_velocity",
+        asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    ) -> torch.Tensor:
+        asset: Articulation = env.scene[asset_cfg.name]
+        command = torch.nan_to_num(env.command_manager.get_command(command_name)[:, 2], nan=0.0)
+        wz = torch.nan_to_num(asset.data.root_ang_vel_b[:, 2], nan=0.0, posinf=0.0, neginf=0.0)
+        error = torch.clamp(command - wz, -max_error, max_error)
+        window = max(1, int(window_steps))
+        if self._buf is None or self._buf.shape != (error.shape[0], window):
+            self._buf = torch.zeros(error.shape[0], window, device=error.device)
+            self._count = torch.zeros(error.shape[0], dtype=torch.long, device=error.device)
+            self._cmd = command.clone()
+            self._idx = 0
+        if self._step != env.common_step_counter:
+            self._step = env.common_step_counter
+            changed = (command - self._cmd).abs() > 1e-6
+            self._buf[changed] = 0.0
+            self._count[changed] = 0
+            self._cmd = command.clone()
+            self._buf[:, self._idx] = error
+            self._idx = (self._idx + 1) % window
+            self._count = torch.clamp(self._count + 1, max=window)
+        mean = self._buf.sum(dim=1) / self._count.clamp(min=1)
+        return torch.exp(-torch.square(mean) / std**2)
+
 class feet_touchdown_descent_l2(ManagerTermBase):
     def __init__(self, cfg, env: ManagerBasedRLEnv):
         super().__init__(cfg, env)

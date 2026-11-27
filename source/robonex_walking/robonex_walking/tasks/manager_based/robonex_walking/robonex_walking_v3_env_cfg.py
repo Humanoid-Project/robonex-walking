@@ -2,6 +2,7 @@ import dataclasses
 
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.managers import EventTermCfg as EventTerm
+from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils import configclass
 
@@ -16,6 +17,14 @@ NECK_TARGET_RANGE_SCALE = 0.0
 NECK_TARGET_RESAMPLE_S = (1.0, 3.0)
 NECK_TARGET_BLEND_S = 1.0
 NECK_TARGET_RANGES = {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)}
+ARM_TARGET_MARGIN_RAD = 0.05
+ARM_TARGET_RANGE_SCALE = 0.0
+ARM_TARGET_RESAMPLE_S = (1.0, 3.0)
+ARM_TARGET_BLEND_S = 1.0
+HAND_PAYLOAD_KG = (0.0, 0.0)
+YAW_CYCLE_WEIGHT = 0.0
+YAW_CYCLE_STD = 0.25
+YAW_CYCLE_WINDOW_STEPS = 40
 
 
 def _rename(obj, seen=None):
@@ -105,8 +114,15 @@ class RoboNexWalkingV3EnvCfg(RoboNexWalkingV2EduEnvCfg):
         self.foot_sole_corners = v3.FOOT_SOLE_CORNERS
         self.rewards.feet_contact_force.params["threshold"] = round(CONTACT_FORCE_LIMIT_BW * v3.MASS_KG * GRAVITY, 1)
         self._apply_w197_recipe()
+        self.events.hand_payload = self._hand_payload_term()
+        self.rewards.track_ang_vel_z_cycle = RewTerm(
+            func=mdp.track_ang_vel_z_cycle_exp,
+            weight=YAW_CYCLE_WEIGHT,
+            params={"std": YAW_CYCLE_STD, "window_steps": YAW_CYCLE_WINDOW_STEPS},
+        )
         if self.model_variant == "full":
             self.events.neck_target = self._neck_target_term()
+            self.events.arm_target = self._arm_target_term()
 
     def _neck_target_term(self):
         step_s = self.sim.dt * self.decimation
@@ -124,6 +140,35 @@ class RoboNexWalkingV3EnvCfg(RoboNexWalkingV2EduEnvCfg):
                 "start_at_default": False,
                 "write_state_at_reset": True,
                 "ranges": dict(NECK_TARGET_RANGES),
+            },
+        )
+
+    def _arm_target_term(self):
+        step_s = self.sim.dt * self.decimation
+        return EventTerm(
+            func=mdp.randomize_neck_target,
+            mode="interval",
+            interval_range_s=(step_s, step_s),
+            params={
+                "asset_cfg": SceneEntityCfg("robot", joint_names=list(v3.ARM_JOINTS), preserve_order=True),
+                "limits": {name: tuple(lim) for name, lim in v3.ARM_LIMITS.items()},
+                "margin": ARM_TARGET_MARGIN_RAD,
+                "range_scale": ARM_TARGET_RANGE_SCALE,
+                "resample_s": ARM_TARGET_RESAMPLE_S,
+                "blend_s": ARM_TARGET_BLEND_S,
+                "start_at_default": False,
+                "write_state_at_reset": True,
+            },
+        )
+
+    def _hand_payload_term(self):
+        return EventTerm(
+            func=mdp.randomize_payload_mass,
+            mode="reset",
+            params={
+                "asset_cfg": SceneEntityCfg("robot", body_names=list(v3.HAND_BODIES), preserve_order=True),
+                "mass_distribution_params": HAND_PAYLOAD_KG,
+                "operation": "add",
             },
         )
 

@@ -56,6 +56,7 @@ V2_TO_V3 = {n: v3_name(n) for n in v2.LEG_JOINTS}
 V2_TO_V3.update(BODY_MAP)
 V2_TO_V3.update({n: v3_name(n) for n in ("l_hip_roll_link", "r_hip_roll_link", "l_knee_link", "r_knee_link")})
 FEET = ("left_ankle_pitch_link", "right_ankle_pitch_link")
+HAND_BODIES = ("left_wrist_roll_link", "right_wrist_roll_link")
 
 ARM_JOINTS = tuple(
     "%s_%s_joint" % (side, role)
@@ -89,6 +90,7 @@ for _name in LEG_JOINTS:
     if max(abs(a - b) for a, b in zip(_limits[_name], v2_lim)) > 1e-9:
         raise RuntimeError(f"{_name}: ver3 limits {_limits[_name]} differ from ver2 {v2_lim}")
 NECK_LIMITS = {name: _limits[name] for name in NECK_JOINTS}
+ARM_LIMITS = {name: _limits[name] for name in ARM_JOINTS}
 
 
 def _isaac_passive_name(name):
