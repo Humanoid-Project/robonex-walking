@@ -4,6 +4,7 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 import os
 
 from isaaclab.app import AppLauncher
@@ -126,6 +127,19 @@ from transition_metrics import (
     steps_per_period,
     window_steps,
 )
+
+def tracking_spread(total, total_sq, count):
+    count = float(count)
+    rows = {}
+    for axis, sums, squares in zip(("vx", "vy", "wz"), total, total_sq):
+        means = [float(s) / count for s in sums]
+        variances = [max(float(q) / count - m * m, 0.0) for q, m in zip(squares, means)]
+        center = sum(means) / len(means)
+        rows[f"got_{axis}_env_sd"] = math.sqrt(sum((m - center) ** 2 for m in means) / len(means))
+        if axis != "vy":
+            rows[f"{axis}_osc_rms"] = math.sqrt(sum(variances) / len(variances))
+    return rows
+
 
 CELLS = {
     "fwd_slow": (0.1, 0.0, 0.0),
@@ -802,6 +816,8 @@ def main():
 
         err = torch.zeros(3, device=unwrapped.device)
         got = torch.zeros(3, device=unwrapped.device)
+        env_sum = torch.zeros((3, unwrapped.num_envs), dtype=torch.float64, device=unwrapped.device)
+        env_sumsq = torch.zeros((3, unwrapped.num_envs), dtype=torch.float64, device=unwrapped.device)
         falls = torch.zeros((), device=unwrapped.device)
         fail_terms = [
             name
@@ -858,6 +874,9 @@ def main():
             got[0] += lin[:, 0].mean()
             got[1] += lin[:, 1].mean()
             got[2] += ang[:, 2].mean()
+            sample = torch.stack((lin[:, 0], lin[:, 1], ang[:, 2])).double()
+            env_sum += sample
+            env_sumsq += sample * sample
             step_failed = torch.zeros(
                 unwrapped.num_envs, dtype=torch.bool, device=unwrapped.device
             )
@@ -901,6 +920,7 @@ def main():
         row["got_vx"] = (got[0] / counted).item()
         row["got_vy"] = (got[1] / counted).item()
         row["got_wz"] = (got[2] / counted).item()
+        row.update(tracking_spread(env_sum.cpu().tolist(), env_sumsq.cpu().tolist(), counted.item()))
         # falls counted per env-timestep: NOT an episode failure rate
         row["falls_per_env_step"] = (falls / counted).item()
         row["falls_per_env_second"] = (falls / counted / unwrapped.step_dt).item()
