@@ -1,4 +1,5 @@
 import argparse
+import importlib.util
 import os
 import sys
 from pathlib import Path
@@ -157,6 +158,23 @@ def write_receipt(manifest_path, policy, checkpoint, training_root, contract):
     if checkpoint is None:
         print("WARNING: no --checkpoint given; %s records this manifest as UNVERIFIED" % path)
     print(path)
+
+
+def saved_robot_identity(saved_env):
+    spec = importlib.util.spec_from_file_location(
+        "_export_deploy_effects", Path(__file__).resolve().parent / "rsl_rl" / "deploy_effects.py")
+    effects = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(effects)
+    usd_path, _ = effects.saved_robot(saved_env.parent.parent / "model.pt")
+    return effects.robot_identity(usd_path)
+
+
+def ver3_export_refusal(saved_env):
+    identity = saved_robot_identity(saved_env)
+    if identity is None or identity[0] != "ver3":
+        return None
+    return (f"{saved_env}: trained on {identity[0]}/{identity[1]}; ver3 export needs a ver3 robot profile in "
+            "robonex-common (planned 2.6.0)")
 
 
 def saved_action_normalization(saved_env):
@@ -375,6 +393,9 @@ def main():
     saved_env = args.checkpoint.expanduser().resolve().parent / "params" / "env.yaml"
     if not saved_env.is_file():
         raise SystemExit(f"{saved_env} is missing; the export cannot be checked against the run")
+    refusal = ver3_export_refusal(saved_env)
+    if refusal is not None:
+        raise SystemExit(refusal)
     offsets, scales, clips = saved_action_normalization(saved_env)
     inferred, pose = infer_robot_model(saved_env, offsets, scales, clips)
     if saved_action_pose(saved_env) != pose:
