@@ -199,6 +199,21 @@ def resolve_leg_order(run_dir, constants):
     return order, source
 
 
+def upper_armature_values(upper_joints, upper_train_gains):
+    if not upper_train_gains:
+        raise RuntimeError("--upper-armature isaac: the run's env.yaml has no upper_* actuator groups (a legs run); "
+                           "there is no trained upper-body armature to copy")
+    if not upper_joints:
+        raise RuntimeError("--upper-armature isaac: the scene has no upper-body actuators")
+    values = {}
+    for name in upper_joints:
+        groups = [g for g, (_, _, _, _, exprs) in upper_train_gains.items() if any(re.match(e + "$", name) for e in exprs)]
+        if len(groups) != 1:
+            raise RuntimeError(f"--upper-armature isaac: {name} matches upper actuator groups {groups}, expected one")
+        values[name] = float(upper_train_gains[groups[0]][3])
+    return values
+
+
 class RunContract:
     def __init__(self, run_dir, leg_order=ISAAC_LEG_ARTICULATION_ORDER):
         self.run_dir = Path(run_dir)
@@ -444,6 +459,17 @@ class MujocoPlant:
         self.illegal_bodies = {b for b in range(model.nbody)
                                if contract.illegal_regex.match(mujoco.mj_id2name(model, obj.mjOBJ_BODY, b) or "")}
         self.velocity = np.zeros(6)
+
+    def upper_armature(self):
+        m = self.model
+        return {name: float(m.dof_armature[m.jnt_dofadr[m.actuator_trnid[a, 0]]])
+                for name, a in zip(self.upper_joints, self.upper_actuators)}
+
+    def set_upper_armature(self, values):
+        m = self.model
+        for name, a in zip(self.upper_joints, self.upper_actuators):
+            m.dof_armature[m.jnt_dofadr[m.actuator_trnid[a, 0]]] = values[name]
+        return self.upper_armature()
 
     def gain_table(self):
         m = self.model
@@ -771,6 +797,9 @@ def parse_args(argv=None):
     parser.add_argument("--settle-s", type=float, default=1.0, help="seconds excluded at the start of each command")
     parser.add_argument("--stop-on-fall", action="store_true", help="headless: stop at the first fall")
     parser.add_argument("--description-root", type=Path, help="robonex-description checkout (default: sibling)")
+    parser.add_argument("--upper-armature", choices=("model", "isaac"), default="model",
+                        help="armature of the arm and neck joints: the MJCF's (model) or the run's env.yaml upper_* "
+                             "actuator groups (isaac; placeholder values, full-variant runs only)")
     args = parser.parse_args(argv)
     if args.headless and args.duration is None:
         parser.error("--headless requires --duration")
@@ -800,6 +829,12 @@ def main(argv=None):
     model = mujoco.MjModel.from_xml_path(str(scene))
     data = mujoco.MjData(model)
     plant = MujocoPlant(mujoco, model, contract)
+    if args.upper_armature == "isaac":
+        upper_armature = {"source": "isaac env.yaml scene.robot.actuators.upper_*.armature", "label": "placeholder",
+                          "values": plant.set_upper_armature(upper_armature_values(plant.upper_joints,
+                                                                                   contract.upper_train_gains))}
+    else:
+        upper_armature = {"source": "model", "label": "mjcf", "values": plant.upper_armature()}
     friction = None
     if args.joint_friction is not None:
         levels = dict(zip(("rs02", "rs03"), args.joint_friction))
@@ -824,7 +859,7 @@ def main(argv=None):
         "observation_size": contract.observation_size, "joint_order": list(contract.joint_order),
         "joint_order_source": leg_order_source,
         "slew": bool(slew), "joint_obs_delay_policy_steps": joint_delay, "imu_delay_mujoco_steps": imu_delay,
-        "joint_friction": friction, "runner_action_clip": contract.runner_clip,
+        "joint_friction": friction, "upper_armature": upper_armature, "runner_action_clip": contract.runner_clip,
         "command": [args.vx, args.vy, args.wz] if not args.scenario else args.scenario,
         "trained_command_limits": contract.command_limits,
     }
