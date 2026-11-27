@@ -15,6 +15,7 @@ NECK_TARGET_MARGIN_RAD = 0.05
 NECK_TARGET_RANGE_SCALE = 0.0
 NECK_TARGET_RESAMPLE_S = (1.0, 3.0)
 NECK_TARGET_BLEND_S = 1.0
+NECK_TARGET_RANGES = {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)}
 
 
 def _rename(obj, seen=None):
@@ -122,6 +123,7 @@ class RoboNexWalkingV3EnvCfg(RoboNexWalkingV2EduEnvCfg):
                 "blend_s": NECK_TARGET_BLEND_S,
                 "start_at_default": False,
                 "write_state_at_reset": True,
+                "ranges": dict(NECK_TARGET_RANGES),
             },
         )
 

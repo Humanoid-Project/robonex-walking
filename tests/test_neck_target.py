@@ -126,6 +126,68 @@ class NeckTargetTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ns["neck_target_timing"]((0.0, 1.0), 0.5)
 
+    def test_explicit_ranges_scale_toward_zero(self):
+        ns = load_events()
+        lim = neck_limits()
+        ranges = {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)}
+        low, high = ns["neck_target_bounds"](list(NECK), lim, 0.05, 1.0, ranges)
+        torch.testing.assert_close(low, torch.tensor([-0.2368, -0.26]))
+        torch.testing.assert_close(high, torch.tensor([0.2368, 0.52]))
+        low, high = ns["neck_target_bounds"](list(NECK), lim, 0.05, 0.5, ranges)
+        torch.testing.assert_close(low, torch.tensor([-0.1184, -0.13]))
+        torch.testing.assert_close(high, torch.tensor([0.1184, 0.26]))
+        low, high = ns["neck_target_bounds"](list(reversed(NECK)), lim, 0.05, 1.0, ranges)
+        torch.testing.assert_close(low, torch.tensor([-0.26, -0.2368]))
+
+    def test_explicit_ranges_are_checked(self):
+        ns = load_events()
+        lim = neck_limits()
+        good = {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)}
+        bad = [
+            dict(good, neck_pitch_joint=(0.1, 0.52)),
+            dict(good, neck_pitch_joint=(-0.52, -0.1)),
+            dict(good, neck_pitch_joint=(0.0, 0.0)),
+            dict(good, neck_yaw_joint=(-lim["neck_yaw_joint"][1], 0.2)),
+            dict(good, neck_pitch_joint=(-0.26, lim["neck_pitch_joint"][1] - 0.04)),
+            dict(good, neck_pitch_joint=(-0.26, float("nan"))),
+            {"neck_yaw_joint": (-0.2, 0.2)},
+            dict(good, head_joint=(-0.1, 0.1)),
+        ]
+        for ranges in bad:
+            with self.assertRaises(ValueError, msg=str(ranges)):
+                ns["neck_target_bounds"](list(NECK), lim, 0.05, 1.0, ranges)
+        ns["neck_target_bounds"](list(NECK), lim, 0.05, 1.0, dict(good, neck_pitch_joint=(0.0, 0.52)))
+
+    def test_no_ranges_keeps_the_symmetric_bounds(self):
+        ns = load_events()
+        low, high = ns["neck_target_bounds"](list(NECK), neck_limits(), 0.05, 0.5, None)
+        if CONSTANTS.exists():
+            torch.testing.assert_close(low, torch.tensor([-0.2368, -0.61205]), atol=1e-4, rtol=0)
+            torch.testing.assert_close(high, torch.tensor([0.2368, 0.61205]), atol=1e-4, rtol=0)
+        same = ns["neck_target_bounds"](list(NECK), neck_limits(), 0.05, 0.5)
+        torch.testing.assert_close(same[0], low)
+        torch.testing.assert_close(same[1], high)
+
+    def test_term_with_ranges_draws_inside_them(self):
+        ranges = {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)}
+        _, term, env, asset, params, neck_ids = make(num_envs=256, ranges=ranges, resample_s=(0.3, 0.5))
+        term.reset(None)
+        targets = torch.cat([term.target.clone().unsqueeze(0), run(term, env, params, 500)])
+        for i, n in enumerate(NECK):
+            lo, hi = ranges[n]
+            self.assertGreaterEqual(float(targets[..., i].min()), lo - 1e-6)
+            self.assertLessEqual(float(targets[..., i].max()), hi + 1e-6)
+            self.assertLess(float(targets[..., i].min()), lo + 0.1 * (hi - lo))
+            self.assertGreater(float(targets[..., i].max()), hi - 0.1 * (hi - lo))
+        self.assertGreater(float(targets[..., 1].mean()), 0.05)
+
+    def test_inert_scale_ignores_invalid_ranges(self):
+        _, term, env, asset, params, _ = make(range_scale=0.0, ranges={"neck_yaw_joint": (0.1, 0.2)})
+        term.reset(None)
+        term(env, torch.arange(env.num_envs), **params)
+        self.assertIsNone(term.prev)
+        self.assertEqual(asset.target_calls + asset.state_calls, [])
+
     def test_targets_stay_inside_the_range_and_cover_it(self):
         _, term, env, asset, params, neck_ids = make()
         term.reset(None)
@@ -245,6 +307,18 @@ class NeckTargetConfigTest(unittest.TestCase):
         self.assertIn("interval_range_s=(step_s, step_s)", src)
         self.assertIn("v3.NECK_LIMITS", src)
         self.assertIn("joint_names=list(v3.NECK_JOINTS)", src)
+        self.assertIn("'ranges': dict(NECK_TARGET_RANGES)", src)
+        self.assertEqual(consts["NECK_TARGET_RANGES"],
+                         {"neck_yaw_joint": (-0.2368, 0.2368), "neck_pitch_joint": (-0.26, 0.52)})
+
+    def test_ranges_fit_the_contract_limits(self):
+        tree, _ = v3_post_init()
+        consts = {n.targets[0].id: ast.literal_eval(n.value) for n in tree.body
+                  if isinstance(n, ast.Assign) and isinstance(n.targets[0], ast.Name) and n.targets[0].id.startswith("NECK_")}
+        ns = load_events()
+        low, high = ns["neck_target_bounds"](list(NECK), neck_limits(), consts["NECK_TARGET_MARGIN_RAD"], 1.0,
+                                             consts["NECK_TARGET_RANGES"])
+        self.assertTrue(bool(torch.all(low < 0.0) and torch.all(high > 0.0)))
 
     def test_term_is_added_only_for_the_full_variant(self):
         _, cls = v3_post_init()

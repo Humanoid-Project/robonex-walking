@@ -236,7 +236,7 @@ def apply_sustained_base_load(
     )
 
 
-def neck_target_bounds(names, limits, margin, range_scale):
+def neck_target_bounds(names, limits, margin, range_scale, ranges=None):
     unknown = sorted(set(limits) - set(names))
     missing = [name for name in names if name not in limits]
     if unknown or missing:
@@ -250,6 +250,20 @@ def neck_target_bounds(names, limits, margin, range_scale):
     upper = torch.tensor([float(limits[name][1]) for name in names]) - margin
     if not bool(torch.all(torch.isfinite(lower)) and torch.all(torch.isfinite(upper))) or bool(torch.any(upper <= lower)):
         raise ValueError(f"neck target limits {limits} leave no range after margin {margin}")
+    if ranges is not None:
+        unknown = sorted(set(ranges) - set(names))
+        missing = [name for name in names if name not in ranges]
+        if unknown or missing:
+            raise ValueError(f"neck target ranges keys must be the event's joints: unknown {unknown}, missing {missing}")
+        lo = torch.tensor([float(ranges[name][0]) for name in names])
+        hi = torch.tensor([float(ranges[name][1]) for name in names])
+        if not bool(torch.all(torch.isfinite(lo)) and torch.all(torch.isfinite(hi))):
+            raise ValueError(f"neck target ranges {ranges} must be finite")
+        if bool(torch.any(lo > 0.0) or torch.any(hi < 0.0) or torch.any(hi <= lo)):
+            raise ValueError(f"neck target ranges {ranges} must satisfy low <= 0 <= high and low < high")
+        if bool(torch.any(lo < lower) or torch.any(hi > upper)):
+            raise ValueError(f"neck target ranges {ranges} exceed the limits {limits} minus margin {margin}")
+        return lo * scale, hi * scale
     mid = 0.5 * (lower + upper)
     half = 0.5 * (upper - lower) * scale
     return mid - half, mid + half
@@ -270,7 +284,7 @@ class randomize_neck_target(ManagerTermBase):
         super().__init__(cfg, env)
         self.prev = None
 
-    def _setup(self, asset_cfg, limits, margin, range_scale, resample_s, blend_s):
+    def _setup(self, asset_cfg, limits, margin, range_scale, resample_s, blend_s, ranges=None):
         if float(range_scale) == 0.0:
             return None
         asset: Articulation = self._env.scene[asset_cfg.name]
@@ -279,7 +293,7 @@ class randomize_neck_target(ManagerTermBase):
             joint_ids = list(range(asset.num_joints))[joint_ids]
         joint_ids = [int(i) for i in joint_ids]
         names = [asset.joint_names[i] for i in joint_ids]
-        low, high = neck_target_bounds(names, limits, margin, range_scale)
+        low, high = neck_target_bounds(names, limits, margin, range_scale, ranges)
         neck_target_timing(resample_s, blend_s)
         if self.prev is None:
             shape = (self._env.num_envs, len(joint_ids))
@@ -306,7 +320,7 @@ class randomize_neck_target(ManagerTermBase):
     def reset(self, env_ids=None):
         params = self.cfg.params
         setup = self._setup(params["asset_cfg"], params["limits"], params.get("margin", 0.05), params.get("range_scale", 0.0),
-                            params.get("resample_s", (1.0, 3.0)), params.get("blend_s", 1.0))
+                            params.get("resample_s", (1.0, 3.0)), params.get("blend_s", 1.0), params.get("ranges"))
         if setup is None:
             return
         asset, joint_ids, low, high = setup
@@ -338,8 +352,9 @@ class randomize_neck_target(ManagerTermBase):
         blend_s: float = 1.0,
         start_at_default: bool = False,
         write_state_at_reset: bool = True,
+        ranges: dict[str, tuple[float, float]] | None = None,
     ):
-        setup = self._setup(asset_cfg, limits, margin, range_scale, resample_s, blend_s)
+        setup = self._setup(asset_cfg, limits, margin, range_scale, resample_s, blend_s, ranges)
         if setup is None:
             return
         asset, joint_ids, low, high = setup
