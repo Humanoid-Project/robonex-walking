@@ -1,0 +1,2584 @@
+{
+ "action_pose": "home",
+ "actions": {
+  "joint_pos": {
+   "actuation_delay_substeps": null,
+   "asset_name": "robot",
+   "class_type": "robonex_walking.tasks.manager_based.robonex_walking.mdp.actions:Ver2JointPositionAction",
+   "clip": {
+    "l_ankle_lower_joint": [
+     "__tuple__",
+     -0.583412,
+     0.462984
+    ],
+    "l_ankle_upper_joint": [
+     "__tuple__",
+     -0.646244,
+     0.49614499999999995
+    ],
+    "l_hip_pitch_joint": [
+     "__tuple__",
+     -1.52938,
+     1.958731
+    ],
+    "l_hip_roll_joint": [
+     "__tuple__",
+     -2.503274,
+     0.215147
+    ],
+    "l_hip_yaw_joint": [
+     "__tuple__",
+     -0.789361,
+     0.7492179999999999
+    ],
+    "l_knee_pitch_joint": [
+     "__tuple__",
+     -1.082576,
+     -0.01
+    ],
+    "r_ankle_lower_joint": [
+     "__tuple__",
+     -0.462984,
+     0.583412
+    ],
+    "r_ankle_upper_joint": [
+     "__tuple__",
+     -0.49614499999999995,
+     0.646244
+    ],
+    "r_hip_pitch_joint": [
+     "__tuple__",
+     -1.958731,
+     1.52938
+    ],
+    "r_hip_roll_joint": [
+     "__tuple__",
+     -0.215147,
+     2.503274
+    ],
+    "r_hip_yaw_joint": [
+     "__tuple__",
+     -0.7492179999999999,
+     0.789361
+    ],
+    "r_knee_pitch_joint": [
+     "__tuple__",
+     0.01,
+     1.082576
+    ]
+   },
+   "debug_vis": false,
+   "foot_roll_coeffs": [
+    "__tuple__",
+    -0.001195,
+    0.498159,
+    0.491024,
+    -0.105182,
+    -0.03196,
+    0.006356
+   ],
+   "foot_roll_limit": 0.20943951023931956,
+   "foot_roll_pairs": [
+    "__tuple__",
+    [
+     "__tuple__",
+     "l_ankle_upper_joint",
+     "l_ankle_lower_joint",
+     1.0
+    ],
+    [
+     "__tuple__",
+     "r_ankle_upper_joint",
+     "r_ankle_lower_joint",
+     -1.0
+    ]
+   ],
+   "joint_names": [
+    "__tuple__",
+    "l_hip_yaw_joint",
+    "l_hip_pitch_joint",
+    "l_hip_roll_joint",
+    "l_knee_pitch_joint",
+    "l_ankle_upper_joint",
+    "l_ankle_lower_joint",
+    "r_hip_yaw_joint",
+    "r_hip_pitch_joint",
+    "r_hip_roll_joint",
+    "r_knee_pitch_joint",
+    "r_ankle_upper_joint",
+    "r_ankle_lower_joint"
+   ],
+   "max_accel": 120.0,
+   "max_speed": 6.0,
+   "offset": {
+    "l_ankle_lower_joint": -0.22908552614940247,
+    "l_ankle_upper_joint": 0.23962121825843782,
+    "l_hip_pitch_joint": 0.13,
+    "l_hip_roll_joint": 0.0,
+    "l_hip_yaw_joint": 0.0,
+    "l_knee_pitch_joint": -0.23648024059811287,
+    "r_ankle_lower_joint": 0.22908552614940247,
+    "r_ankle_upper_joint": -0.23962121825843782,
+    "r_hip_pitch_joint": -0.13,
+    "r_hip_roll_joint": 0.0,
+    "r_hip_yaw_joint": 0.0,
+    "r_knee_pitch_joint": 0.23648024059811287
+   },
+   "preserve_order": false,
+   "scale": {
+    "l_ankle_lower_joint": 0.118109,
+    "l_ankle_upper_joint": 0.085508,
+    "l_hip_pitch_joint": 0.25,
+    "l_hip_roll_joint": 0.178806,
+    "l_hip_yaw_joint": 0.24974,
+    "l_knee_pitch_joint": 0.075494,
+    "r_ankle_lower_joint": 0.118109,
+    "r_ankle_upper_joint": 0.085508,
+    "r_hip_pitch_joint": 0.25,
+    "r_hip_roll_joint": 0.178806,
+    "r_hip_yaw_joint": 0.24974,
+    "r_knee_pitch_joint": 0.075494
+   },
+   "slew_enabled": true,
+   "use_default_offset": false
+  }
+ },
+ "commands": {
+  "base_velocity": {
+   "asset_name": "robot",
+   "class_type": "isaaclab.envs.mdp.commands.velocity_command:UniformVelocityCommand",
+   "current_vel_visualizer_cfg": {
+    "markers": {
+     "arrow": {
+      "activate_contact_sensors": false,
+      "articulation_props": null,
+      "collision_props": null,
+      "copy_from_source": true,
+      "deformable_props": null,
+      "fixed_tendons_props": null,
+      "func": "isaaclab.sim.spawners.from_files.from_files:spawn_from_usd",
+      "joint_drive_props": null,
+      "mass_props": null,
+      "rigid_props": null,
+      "scale": [
+       "__tuple__",
+       0.5,
+       0.5,
+       0.5
+      ],
+      "semantic_tags": null,
+      "spatial_tendons_props": null,
+      "usd_path": "<stub>/Isaac/Props/UIElements/arrow_x.usd",
+      "variants": null,
+      "visible": true,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        1.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     }
+    },
+    "prim_path": "/Visuals/Command/velocity_current"
+   },
+   "debug_vis": false,
+   "goal_vel_visualizer_cfg": {
+    "markers": {
+     "arrow": {
+      "activate_contact_sensors": false,
+      "articulation_props": null,
+      "collision_props": null,
+      "copy_from_source": true,
+      "deformable_props": null,
+      "fixed_tendons_props": null,
+      "func": "isaaclab.sim.spawners.from_files.from_files:spawn_from_usd",
+      "joint_drive_props": null,
+      "mass_props": null,
+      "rigid_props": null,
+      "scale": [
+       "__tuple__",
+       0.5,
+       0.5,
+       0.5
+      ],
+      "semantic_tags": null,
+      "spatial_tendons_props": null,
+      "usd_path": "<stub>/Isaac/Props/UIElements/arrow_x.usd",
+      "variants": null,
+      "visible": true,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        0.0,
+        1.0,
+        0.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     }
+    },
+    "prim_path": "/Visuals/Command/velocity_goal"
+   },
+   "heading_command": false,
+   "heading_control_stiffness": 1.0,
+   "limit_ranges": {
+    "ang_vel_z": [
+     "__tuple__",
+     -0.2,
+     0.2
+    ],
+    "heading": null,
+    "lin_vel_x": [
+     "__tuple__",
+     -0.2,
+     0.5
+    ],
+    "lin_vel_y": [
+     "__tuple__",
+     -0.2,
+     0.2
+    ]
+   },
+   "ranges": {
+    "ang_vel_z": [
+     "__tuple__",
+     0.0,
+     0.0
+    ],
+    "heading": null,
+    "lin_vel_x": [
+     "__tuple__",
+     0.1,
+     0.1
+    ],
+    "lin_vel_y": [
+     "__tuple__",
+     0.0,
+     0.0
+    ]
+   },
+   "rel_heading_envs": 0.0,
+   "rel_standing_envs": 0.15,
+   "resampling_time_range": [
+    "__tuple__",
+    10.0,
+    10.0
+   ]
+  }
+ },
+ "curriculum": {
+  "lin_vel_cmd": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.curriculums:lin_vel_cmd_levels",
+   "params": {}
+  }
+ },
+ "decimation": 8,
+ "episode_length_s": 20,
+ "events": {
+  "push_robot": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:push_robot_with_sway_marker",
+   "interval_range_s": [
+    "__tuple__",
+    10.0,
+    15.0
+   ],
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "interval",
+   "params": {
+    "velocity_range": {
+     "x": [
+      "__tuple__",
+      -0.5,
+      0.5
+     ],
+     "y": [
+      "__tuple__",
+      -0.5,
+      0.5
+     ]
+    }
+   }
+  },
+  "push_standing": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:push_standing_with_sway_marker",
+   "interval_range_s": [
+    "__tuple__",
+    4.0,
+    8.0
+   ],
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "interval",
+   "params": {
+    "velocity_range": {
+     "x": [
+      "__tuple__",
+      -0.5,
+      0.5
+     ],
+     "y": [
+      "__tuple__",
+      -0.5,
+      0.5
+     ]
+    }
+   }
+  },
+  "randomize_base_com": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.events:randomize_rigid_body_com_offset",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "base_link"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "com_range": {
+     "x": [
+      "__tuple__",
+      -0.03,
+      0.0
+     ],
+     "y": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "z": [
+      "__tuple__",
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "randomize_friction": {
+   "func": "isaaclab.envs.mdp.events:randomize_rigid_body_material",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "dynamic_friction_range": [
+     "__tuple__",
+     0.3,
+     1.0
+    ],
+    "make_consistent": true,
+    "num_buckets": 64,
+    "restitution_range": [
+     "__tuple__",
+     0.0,
+     0.0
+    ],
+    "static_friction_range": [
+     "__tuple__",
+     0.3,
+     1.0
+    ]
+   }
+  },
+  "randomize_gait_clock": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.events:randomize_gait_clock_offset",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "offset_range": [
+     "__tuple__",
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "randomize_hip_yaw_stiffness": {
+   "func": "isaaclab.envs.mdp.events:randomize_actuator_gains",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "startup",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      ".*_hip_yaw_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "distribution": "uniform",
+    "operation": "scale",
+    "stiffness_distribution_params": [
+     "__tuple__",
+     0.25,
+     1.0
+    ]
+   }
+  },
+  "randomize_joint_friction": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.events:randomize_joint_coulomb_friction",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "friction_range": {
+     "l_ankle_lower_joint": [
+      "__tuple__",
+      0.05,
+      0.25
+     ],
+     "l_ankle_upper_joint": [
+      "__tuple__",
+      0.05,
+      0.25
+     ],
+     "l_hip_pitch_joint": [
+      "__tuple__",
+      0.2,
+      0.8
+     ],
+     "l_hip_roll_joint": [
+      "__tuple__",
+      0.2,
+      0.8
+     ],
+     "l_hip_yaw_joint": [
+      "__tuple__",
+      0.05,
+      0.25
+     ],
+     "l_knee_pitch_joint": [
+      "__tuple__",
+      0.2,
+      0.8
+     ],
+     "r_ankle_lower_joint": [
+      "__tuple__",
+      0.05,
+      0.25
+     ],
+     "r_ankle_upper_joint": [
+      "__tuple__",
+      0.05,
+      0.25
+     ],
+     "r_hip_pitch_joint": [
+      "__tuple__",
+      0.2,
+      0.8
+     ],
+     "r_hip_roll_joint": [
+      "__tuple__",
+      0.2,
+      0.8
+     ],
+     "r_hip_yaw_joint": [
+      "__tuple__",
+      0.05,
+      0.25
+     ],
+     "r_knee_pitch_joint": [
+      "__tuple__",
+      0.2,
+      0.8
+     ]
+    },
+    "static_ratio": 1.0,
+    "viscous": 0.0
+   }
+  },
+  "randomize_joint_zero": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.events:randomize_joint_zero_offset",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "offset_range": {
+     "l_ankle_lower_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "l_ankle_upper_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "l_hip_pitch_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "l_hip_roll_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "l_hip_yaw_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "l_knee_pitch_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "r_ankle_lower_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "r_ankle_upper_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "r_hip_pitch_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "r_hip_roll_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "r_hip_yaw_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "r_knee_pitch_joint": [
+      "__tuple__",
+      0.0,
+      0.0
+     ]
+    }
+   }
+  },
+  "randomize_mass": {
+   "func": "isaaclab.envs.mdp.events:randomize_rigid_body_mass",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "base_link"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "mass_distribution_params": [
+     "__tuple__",
+     -0.3,
+     0.3
+    ],
+    "operation": "add"
+   }
+  },
+  "reset_base": {
+   "func": "isaaclab.envs.mdp.events:reset_root_state_uniform",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "pose_range": {
+     "yaw": [
+      "__tuple__",
+      -3.14159,
+      3.14159
+     ]
+    },
+    "velocity_range": {
+     "pitch": [
+      "__tuple__",
+      -0.2,
+      0.2
+     ],
+     "roll": [
+      "__tuple__",
+      -0.2,
+      0.2
+     ],
+     "x": [
+      "__tuple__",
+      -0.2,
+      0.2
+     ],
+     "y": [
+      "__tuple__",
+      -0.2,
+      0.2
+     ],
+     "yaw": [
+      "__tuple__",
+      -0.2,
+      0.2
+     ]
+    }
+   }
+  },
+  "reset_leg_joints": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.events:reset_closed_loop_to_default",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   }
+  },
+  "sustained_base_load": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.events:apply_sustained_base_load",
+   "interval_range_s": null,
+   "is_global_time": false,
+   "min_step_count_between_reset": 0,
+   "mode": "reset",
+   "params": {
+    "application_height_m": 0.0,
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "base_link"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "force_range": {
+     "x": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "y": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "z": [
+      "__tuple__",
+      0.0,
+      0.0
+     ]
+    },
+    "torque_range": {
+     "x": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "y": [
+      "__tuple__",
+      0.0,
+      0.0
+     ],
+     "z": [
+      "__tuple__",
+      0.0,
+      0.0
+     ]
+    }
+   }
+  }
+ },
+ "export_io_descriptors": false,
+ "foot_origin_rest_height": 0.0654,
+ "foot_sole_corners": [
+  "__tuple__",
+  [
+   "__tuple__",
+   -0.0591,
+   -0.0588,
+   -0.0654
+  ],
+  [
+   "__tuple__",
+   -0.0591,
+   0.0588,
+   -0.0654
+  ],
+  [
+   "__tuple__",
+   0.1441,
+   -0.0588,
+   -0.0654
+  ],
+  [
+   "__tuple__",
+   0.1441,
+   0.0588,
+   -0.0654
+  ]
+ ],
+ "is_finite_horizon": false,
+ "log_dir": null,
+ "num_rerenders_on_reset": 0,
+ "observations": {
+  "critic": {
+   "base_lin_vel": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "isaaclab.envs.mdp.observations:base_lin_vel",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": null,
+    "params": {},
+    "scale": null
+   },
+   "concatenate_dim": -1,
+   "concatenate_terms": true,
+   "enable_corruption": false,
+   "flatten_history_dim": true,
+   "history_length": 5
+  },
+  "policy": {
+   "actions": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "isaaclab.envs.mdp.observations:last_action",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": null,
+    "params": {},
+    "scale": null
+   },
+   "concatenate_dim": -1,
+   "concatenate_terms": true,
+   "enable_corruption": true,
+   "flatten_history_dim": true,
+   "gait_phase": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.observations:gait_phase",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": null,
+    "params": {
+     "command_name": "base_velocity",
+     "period": 0.8
+    },
+    "scale": null
+   },
+   "history_length": 5,
+   "imu_ang_vel": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.observations:delayed_imu_ang_vel",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": {
+     "bias_noise_cfg": {
+      "func": "isaaclab.utils.noise.noise_model:gaussian_noise",
+      "mean": 0.0,
+      "operation": "abs",
+      "std": 0.05
+     },
+     "class_type": "isaaclab.utils.noise.noise_model:NoiseModelWithAdditiveBias",
+     "func": null,
+     "noise_cfg": {
+      "func": "isaaclab.utils.noise.noise_model:gaussian_noise",
+      "mean": 0.0,
+      "operation": "add",
+      "std": 0.1
+     },
+     "sample_bias_per_component": true
+    },
+    "params": {
+     "asset_cfg": {
+      "body_ids": "slice(None, None, None)",
+      "body_names": null,
+      "fixed_tendon_ids": "slice(None, None, None)",
+      "fixed_tendon_names": null,
+      "joint_ids": "slice(None, None, None)",
+      "joint_names": null,
+      "name": "imu",
+      "object_collection_ids": "slice(None, None, None)",
+      "object_collection_names": null,
+      "preserve_order": false
+     }
+    },
+    "scale": null
+   },
+   "joint_pos_rel": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.observations:delayed_joint_state",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": {
+     "func": "isaaclab.utils.noise.noise_model:gaussian_noise",
+     "mean": 0.0,
+     "operation": "add",
+     "std": 0.0058
+    },
+    "params": {
+     "asset_cfg": {
+      "body_ids": "slice(None, None, None)",
+      "body_names": null,
+      "fixed_tendon_ids": "slice(None, None, None)",
+      "fixed_tendon_names": null,
+      "joint_ids": "slice(None, None, None)",
+      "joint_names": [
+       "__tuple__",
+       "l_hip_yaw_joint",
+       "l_hip_pitch_joint",
+       "l_hip_roll_joint",
+       "l_knee_pitch_joint",
+       "l_ankle_upper_joint",
+       "l_ankle_lower_joint",
+       "r_hip_yaw_joint",
+       "r_hip_pitch_joint",
+       "r_hip_roll_joint",
+       "r_knee_pitch_joint",
+       "r_ankle_upper_joint",
+       "r_ankle_lower_joint"
+      ],
+      "name": "robot",
+      "object_collection_ids": "slice(None, None, None)",
+      "object_collection_names": null,
+      "preserve_order": false
+     },
+     "field": "pos",
+     "max_delay_steps": 1,
+     "min_delay_steps": 0
+    },
+    "scale": null
+   },
+   "joint_vel_rel": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.observations:delayed_joint_state",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": {
+     "func": "isaaclab.utils.noise.noise_model:gaussian_noise",
+     "mean": 0.0,
+     "operation": "add",
+     "std": 0.75
+    },
+    "params": {
+     "asset_cfg": {
+      "body_ids": "slice(None, None, None)",
+      "body_names": null,
+      "fixed_tendon_ids": "slice(None, None, None)",
+      "fixed_tendon_names": null,
+      "joint_ids": "slice(None, None, None)",
+      "joint_names": [
+       "__tuple__",
+       "l_hip_yaw_joint",
+       "l_hip_pitch_joint",
+       "l_hip_roll_joint",
+       "l_knee_pitch_joint",
+       "l_ankle_upper_joint",
+       "l_ankle_lower_joint",
+       "r_hip_yaw_joint",
+       "r_hip_pitch_joint",
+       "r_hip_roll_joint",
+       "r_knee_pitch_joint",
+       "r_ankle_upper_joint",
+       "r_ankle_lower_joint"
+      ],
+      "name": "robot",
+      "object_collection_ids": "slice(None, None, None)",
+      "object_collection_names": null,
+      "preserve_order": false
+     },
+     "field": "vel",
+     "max_delay_steps": 1,
+     "min_delay_steps": 0
+    },
+    "scale": null
+   },
+   "projected_gravity": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.observations:delayed_imu_projected_gravity_biased",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": {
+     "func": "isaaclab.utils.noise.noise_model:gaussian_noise",
+     "mean": 0.0,
+     "operation": "add",
+     "std": 0.025
+    },
+    "params": {
+     "asset_cfg": {
+      "body_ids": "slice(None, None, None)",
+      "body_names": null,
+      "fixed_tendon_ids": "slice(None, None, None)",
+      "fixed_tendon_names": null,
+      "joint_ids": "slice(None, None, None)",
+      "joint_names": null,
+      "name": "imu",
+      "object_collection_ids": "slice(None, None, None)",
+      "object_collection_names": null,
+      "preserve_order": false
+     },
+     "clip_deg": 8.0,
+     "offset_deg": 0.0,
+     "ou_sigma_deg": 0.0,
+     "ou_tau_s": 2.0
+    },
+    "scale": null
+   },
+   "velocity_commands": {
+    "clip": null,
+    "flatten_history_dim": true,
+    "func": "isaaclab.envs.mdp.observations:generated_commands",
+    "history_length": 0,
+    "modifiers": null,
+    "noise": null,
+    "params": {
+     "command_name": "base_velocity"
+    },
+    "scale": null
+   }
+  }
+ },
+ "recorders": {
+  "dataset_export_dir_path": "/tmp/isaaclab/logs",
+  "dataset_export_mode": {
+   "_name_": "EXPORT_ALL",
+   "_sort_order_": 1,
+   "_value_": 1
+  },
+  "dataset_file_handler_class_type": "isaaclab.utils.datasets.hdf5_dataset_file_handler:HDF5DatasetFileHandler",
+  "dataset_filename": "dataset",
+  "export_in_close": false,
+  "export_in_record_pre_reset": true
+ },
+ "rerender_on_reset": false,
+ "rewards": {
+  "action_rate": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:action_rate_l2_bounded",
+   "params": {},
+   "weight": -0.2
+  },
+  "action_smoothness": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:action_smoothness_l2",
+   "params": {
+    "ramp_start": 0.2,
+    "ramp_steps": 7200,
+    "second_order": 0.0
+   },
+   "weight": -1.0
+  },
+  "alive": {
+   "func": "isaaclab.envs.mdp.rewards:is_alive",
+   "params": {},
+   "weight": 0.5
+  },
+  "ang_vel_xy": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:ang_vel_xy_l2_bounded",
+   "params": {},
+   "weight": -0.1
+  },
+  "ang_vel_xy_push_gated": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:ang_vel_xy_push_gated",
+   "params": {
+    "recovery_s": 1.5,
+    "scale": 0.5
+   },
+   "weight": 0.0
+  },
+  "base_height": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:base_height_l2_bounded",
+   "params": {
+    "target_height": 0.93991
+   },
+   "weight": -0.3
+  },
+  "com_forward_margin": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:com_forward_margin_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "command_deadband": 0.05,
+    "command_name": "base_velocity",
+    "foot_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "push_grace_s": 0.0,
+    "scale": 0.02,
+    "settle_s": 2.5,
+    "standing": "cap",
+    "standing_cap": 0.06,
+    "standing_floor": 0.0,
+    "target": 0.055,
+    "tau_s": 0.8
+   },
+   "weight": -0.5
+  },
+  "energy": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:energy_l2_bounded",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   },
+   "weight": -0.05
+  },
+  "feet_clearance": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:feet_clearance_clock_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "command_name": "base_velocity",
+    "offset": [
+     0.0,
+     0.5
+    ],
+    "period": 0.8,
+    "sole_corners": [
+     "__tuple__",
+     [
+      "__tuple__",
+      -0.0591,
+      -0.0588,
+      -0.0654
+     ],
+     [
+      "__tuple__",
+      -0.0591,
+      0.0588,
+      -0.0654
+     ],
+     [
+      "__tuple__",
+      0.1441,
+      -0.0588,
+      -0.0654
+     ],
+     [
+      "__tuple__",
+      0.1441,
+      0.0588,
+      -0.0654
+     ]
+    ],
+    "stance_fraction": 0.55,
+    "target_height": 0.053
+   },
+   "weight": -0.5
+  },
+  "feet_contact_force": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:feet_contact_force_mean_l2",
+   "params": {
+    "scale": 1000000.0,
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "threshold": 360.1
+   },
+   "weight": -1.0
+  },
+  "feet_gait": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:feet_gait_centred",
+   "params": {
+    "command_name": "base_velocity",
+    "offset": [
+     0.0,
+     0.5
+    ],
+    "period": 0.8,
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "threshold": 0.55
+   },
+   "weight": 1.0
+  },
+  "feet_touchdown_descent": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:feet_touchdown_descent_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "command_deadband": 0.0,
+    "command_name": "base_velocity",
+    "deadband": 0.25,
+    "push_grace_s": 0.0,
+    "scale": 0.16,
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    }
+   },
+   "weight": 0.0
+  },
+  "feet_width": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:feet_stance_width_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "lateral_deadband": 0.0,
+    "standing_scale": 0.0009,
+    "standing_width": 0.303,
+    "standing_window": [
+     "__tuple__",
+     0.24,
+     0.3
+    ],
+    "target_width": 0.2687
+   },
+   "weight": -0.3
+  },
+  "flat_orientation": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:flat_orientation_l2_bounded",
+   "params": {},
+   "weight": -1.0
+  },
+  "flight_phase": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:both_feet_off_ground",
+   "params": {
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    }
+   },
+   "weight": -0.2
+  },
+  "foot_roll_clip_excess": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:foot_roll_clip_excess_l2",
+   "params": {
+    "scale": 0.01
+   },
+   "weight": -1.0
+  },
+  "foot_slip": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:foot_slip_latest_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "threshold": 1.0
+   },
+   "weight": -0.3
+  },
+  "joint_acc": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:joint_acc_l2_bounded",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   },
+   "weight": -0.05
+  },
+  "joint_deviation_yaw_roll": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:joint_deviation_l1_bounded",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      ".*_hip_yaw_joint",
+      ".*_hip_roll_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   },
+   "weight": -0.2
+  },
+  "joint_load": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:joint_load_rating_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "max_ratio": 5.0,
+    "rated": {
+     "l_ankle_lower_joint": 6.0,
+     "l_ankle_upper_joint": 6.0,
+     "l_hip_pitch_joint": 13.0,
+     "l_hip_roll_joint": 13.0,
+     "l_hip_yaw_joint": 6.0,
+     "l_knee_pitch_joint": 13.0,
+     "r_ankle_lower_joint": 6.0,
+     "r_ankle_upper_joint": 6.0,
+     "r_hip_pitch_joint": 13.0,
+     "r_hip_roll_joint": 13.0,
+     "r_hip_yaw_joint": 6.0,
+     "r_knee_pitch_joint": 13.0
+    }
+   },
+   "weight": 0.0
+  },
+  "joint_pos_limits": {
+   "func": "isaaclab.envs.mdp.rewards:joint_pos_limits",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   },
+   "weight": -5.0
+  },
+  "joint_vel": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:joint_vel_l2_bounded",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   },
+   "weight": -0.1
+  },
+  "joint_vel_excess": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:joint_vel_excess_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "cap_rad_s": 20.0,
+    "floor_rad_s": 8.0
+   },
+   "weight": 0.0
+  },
+  "lin_vel_y": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:lin_vel_y_l2_bounded",
+   "params": {},
+   "weight": -0.3
+  },
+  "lin_vel_z": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:lin_vel_z_l2_bounded",
+   "params": {},
+   "weight": -0.1
+  },
+  "sent_tracking_excess": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:sent_tracking_excess_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "contact_threshold_n": 20.0,
+    "floor_deg": 20.0,
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "stance_gate": false
+   },
+   "weight": 0.0
+  },
+  "slew_lag": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:slew_lag_l2",
+   "params": {
+    "scale": 0.0025
+   },
+   "weight": 0.0
+  },
+  "stand_hip_roll_load": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:standing_joint_load_l1",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      ".*_hip_roll_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "recovery_gate": [
+     "__tuple__",
+     0.2,
+     0.08,
+     0.2,
+     1.5
+    ],
+    "reference_torque": 20.0
+   },
+   "weight": -0.2
+  },
+  "stand_still": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:stand_still_airborne",
+   "params": {
+    "recovery_gate": [
+     "__tuple__",
+     0.2,
+     0.08,
+     0.2,
+     1.5
+    ],
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": [
+      "l_foot",
+      "r_foot"
+     ],
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "stop_grace_s": 0.0
+   },
+   "weight": -2.0
+  },
+  "stand_still_pose": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:stand_still_pose_l1",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      ".*_knee_pitch_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "recovery_gate": [
+     "__tuple__",
+     0.2,
+     0.08,
+     0.2,
+     1.5
+    ],
+    "stop_grace_s": 0.0
+   },
+   "weight": -1.0
+  },
+  "target_clip_excess": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:target_clip_excess_l2",
+   "params": {
+    "max_excess": 2.0
+   },
+   "weight": -0.3
+  },
+  "terminating": {
+   "func": "isaaclab.envs.mdp.rewards:is_terminated",
+   "params": {},
+   "weight": -5.0
+  },
+  "torque_overrun": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:torque_overrun_l2",
+   "params": {
+    "asset_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": [
+      "__tuple__",
+      "l_hip_yaw_joint",
+      "l_hip_pitch_joint",
+      "l_hip_roll_joint",
+      "l_knee_pitch_joint",
+      "l_ankle_upper_joint",
+      "l_ankle_lower_joint",
+      "r_hip_yaw_joint",
+      "r_hip_pitch_joint",
+      "r_hip_roll_joint",
+      "r_knee_pitch_joint",
+      "r_ankle_upper_joint",
+      "r_ankle_lower_joint"
+     ],
+     "name": "robot",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": true
+    },
+    "rated_spinning": {
+     "l_ankle_lower_joint": 7.0,
+     "l_ankle_upper_joint": 7.0,
+     "l_hip_pitch_joint": 20.0,
+     "l_hip_roll_joint": 20.0,
+     "l_hip_yaw_joint": 7.0,
+     "l_knee_pitch_joint": 20.0,
+     "r_ankle_lower_joint": 7.0,
+     "r_ankle_upper_joint": 7.0,
+     "r_hip_pitch_joint": 20.0,
+     "r_hip_roll_joint": 20.0,
+     "r_hip_yaw_joint": 7.0,
+     "r_knee_pitch_joint": 20.0
+    },
+    "rated_standstill": {
+     "l_ankle_lower_joint": 6.0,
+     "l_ankle_upper_joint": 6.0,
+     "l_hip_pitch_joint": 13.0,
+     "l_hip_roll_joint": 13.0,
+     "l_hip_yaw_joint": 6.0,
+     "l_knee_pitch_joint": 13.0,
+     "r_ankle_lower_joint": 6.0,
+     "r_ankle_upper_joint": 6.0,
+     "r_hip_pitch_joint": 13.0,
+     "r_hip_roll_joint": 13.0,
+     "r_hip_yaw_joint": 6.0,
+     "r_knee_pitch_joint": 13.0
+    }
+   },
+   "weight": -0.05
+  },
+  "track_ang_vel_z": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:track_ang_vel_z_exp",
+   "params": {
+    "std": 0.5
+   },
+   "weight": 1.0
+  },
+  "track_lin_vel_x": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:track_lin_vel_x_exp",
+   "params": {
+    "std": 0.15
+   },
+   "weight": 3.0
+  },
+  "track_lin_vel_y_cycle": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:track_lin_vel_y_cycle_exp",
+   "params": {
+    "std": 0.15,
+    "window_steps": 40
+   },
+   "weight": 1.0
+  }
+ },
+ "scene": {
+  "clone_in_fabric": false,
+  "contact_forces": {
+   "class_type": "isaaclab.sensors.contact_sensor.contact_sensor:ContactSensor",
+   "debug_vis": false,
+   "filter_prim_paths_expr": [],
+   "force_threshold": 1.0,
+   "history_length": 8,
+   "max_contact_data_count_per_prim": 4,
+   "prim_path": "{ENV_REGEX_NS}/Robot/.*_foot",
+   "track_air_time": true,
+   "track_contact_points": false,
+   "track_friction_forces": false,
+   "track_pose": false,
+   "update_period": 0.0,
+   "visualizer_cfg": {
+    "markers": {
+     "contact": {
+      "activate_contact_sensors": false,
+      "collision_props": null,
+      "copy_from_source": true,
+      "func": "isaaclab.sim.spawners.shapes.shapes:spawn_sphere",
+      "mass_props": null,
+      "physics_material": null,
+      "physics_material_path": "material",
+      "radius": 0.02,
+      "rigid_props": null,
+      "semantic_tags": null,
+      "visible": true,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        1.0,
+        0.0,
+        0.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     },
+     "no_contact": {
+      "activate_contact_sensors": false,
+      "collision_props": null,
+      "copy_from_source": true,
+      "func": "isaaclab.sim.spawners.shapes.shapes:spawn_sphere",
+      "mass_props": null,
+      "physics_material": null,
+      "physics_material_path": "material",
+      "radius": 0.02,
+      "rigid_props": null,
+      "semantic_tags": null,
+      "visible": false,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        0.0,
+        1.0,
+        0.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     }
+    },
+    "prim_path": "/Visuals/ContactSensor"
+   }
+  },
+  "dome_light": {
+   "class_type": null,
+   "collision_group": 0,
+   "debug_vis": false,
+   "init_state": {
+    "pos": [
+     "__tuple__",
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     "__tuple__",
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "prim_path": "/World/DomeLight",
+   "spawn": {
+    "color": [
+     "__tuple__",
+     0.9,
+     0.9,
+     0.9
+    ],
+    "color_temperature": 6500.0,
+    "copy_from_source": true,
+    "enable_color_temperature": false,
+    "exposure": 0.0,
+    "func": "isaaclab.sim.spawners.lights.lights:spawn_light",
+    "intensity": 500.0,
+    "normalize": false,
+    "prim_type": "DomeLight",
+    "semantic_tags": null,
+    "texture_file": null,
+    "texture_format": "automatic",
+    "visible": true,
+    "visible_in_primary_ray": true
+   }
+  },
+  "env_spacing": 4.0,
+  "filter_collisions": true,
+  "ground": {
+   "class_type": null,
+   "collision_group": 0,
+   "debug_vis": false,
+   "init_state": {
+    "pos": [
+     "__tuple__",
+     0.0,
+     0.0,
+     0.0
+    ],
+    "rot": [
+     "__tuple__",
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "prim_path": "/World/ground",
+   "spawn": {
+    "color": [
+     "__tuple__",
+     0.0,
+     0.0,
+     0.0
+    ],
+    "copy_from_source": true,
+    "func": "isaaclab.sim.spawners.from_files.from_files:spawn_ground_plane",
+    "physics_material": {
+     "compliant_contact_damping": 0.0,
+     "compliant_contact_stiffness": 0.0,
+     "dynamic_friction": 0.6,
+     "friction_combine_mode": "average",
+     "func": "isaaclab.sim.spawners.materials.physics_materials:spawn_rigid_body_material",
+     "restitution": 0.0,
+     "restitution_combine_mode": "average",
+     "static_friction": 0.6
+    },
+    "semantic_tags": null,
+    "size": [
+     "__tuple__",
+     100.0,
+     100.0
+    ],
+    "usd_path": "<stub>/Isaac/Environments/Grid/default_environment.usd",
+    "visible": true
+   }
+  },
+  "illegal_contacts": {
+   "class_type": "isaaclab.sensors.contact_sensor.contact_sensor:ContactSensor",
+   "debug_vis": false,
+   "filter_prim_paths_expr": [],
+   "force_threshold": 1.0,
+   "history_length": 8,
+   "max_contact_data_count_per_prim": 4,
+   "prim_path": "{ENV_REGEX_NS}/Robot/(base_link|.*_knee_link|.*_ankle_link|.*_hip_.*_link)",
+   "track_air_time": false,
+   "track_contact_points": false,
+   "track_friction_forces": false,
+   "track_pose": false,
+   "update_period": 0.0,
+   "visualizer_cfg": {
+    "markers": {
+     "contact": {
+      "activate_contact_sensors": false,
+      "collision_props": null,
+      "copy_from_source": true,
+      "func": "isaaclab.sim.spawners.shapes.shapes:spawn_sphere",
+      "mass_props": null,
+      "physics_material": null,
+      "physics_material_path": "material",
+      "radius": 0.02,
+      "rigid_props": null,
+      "semantic_tags": null,
+      "visible": true,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        1.0,
+        0.0,
+        0.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     },
+     "no_contact": {
+      "activate_contact_sensors": false,
+      "collision_props": null,
+      "copy_from_source": true,
+      "func": "isaaclab.sim.spawners.shapes.shapes:spawn_sphere",
+      "mass_props": null,
+      "physics_material": null,
+      "physics_material_path": "material",
+      "radius": 0.02,
+      "rigid_props": null,
+      "semantic_tags": null,
+      "visible": false,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        0.0,
+        1.0,
+        0.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     }
+    },
+    "prim_path": "/Visuals/ContactSensor"
+   }
+  },
+  "imu": {
+   "class_type": "robonex_walking.tasks.manager_based.robonex_walking.mdp.observations:DelayedImu",
+   "debug_vis": false,
+   "gravity_bias": [
+    "__tuple__",
+    0.0,
+    0.0,
+    9.81
+   ],
+   "history_length": 1,
+   "max_delay_steps": 6,
+   "min_delay_steps": 1,
+   "offset": {
+    "pos": [
+     "__tuple__",
+     0.009861,
+     0.0,
+     -0.085892
+    ],
+    "rot": [
+     "__tuple__",
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "prim_path": "{ENV_REGEX_NS}/Robot/base_link",
+   "update_period": 0.0,
+   "visualizer_cfg": {
+    "markers": {
+     "arrow": {
+      "activate_contact_sensors": false,
+      "articulation_props": null,
+      "collision_props": null,
+      "copy_from_source": true,
+      "deformable_props": null,
+      "fixed_tendons_props": null,
+      "func": "isaaclab.sim.spawners.from_files.from_files:spawn_from_usd",
+      "joint_drive_props": null,
+      "mass_props": null,
+      "rigid_props": null,
+      "scale": [
+       "__tuple__",
+       1.0,
+       0.1,
+       0.1
+      ],
+      "semantic_tags": null,
+      "spatial_tendons_props": null,
+      "usd_path": "<stub>/Isaac/Props/UIElements/arrow_x.usd",
+      "variants": null,
+      "visible": true,
+      "visual_material": {
+       "diffuse_color": [
+        "__tuple__",
+        1.0,
+        0.0,
+        0.0
+       ],
+       "emissive_color": [
+        "__tuple__",
+        0.0,
+        0.0,
+        0.0
+       ],
+       "func": "isaaclab.sim.spawners.materials.visual_materials:spawn_preview_surface",
+       "metallic": 0.0,
+       "opacity": 1.0,
+       "roughness": 0.5
+      },
+      "visual_material_path": "material"
+     }
+    },
+    "prim_path": "/Visuals/Command/velocity_goal"
+   }
+  },
+  "lazy_sensor_update": true,
+  "num_envs": 512,
+  "replicate_physics": true,
+  "robot": {
+   "actuator_value_resolution_debug_print": false,
+   "actuators": {
+    "rs02": {
+     "armature": 0.0042,
+     "class_type": "isaaclab.actuators.actuator_pd:ImplicitActuator",
+     "damping": {
+      "l_ankle_lower_joint": 2.0,
+      "l_ankle_upper_joint": 2.0,
+      "l_hip_yaw_joint": 2.0,
+      "r_ankle_lower_joint": 2.0,
+      "r_ankle_upper_joint": 2.0,
+      "r_hip_yaw_joint": 2.0
+     },
+     "dynamic_friction": 0.0,
+     "effort_limit": null,
+     "effort_limit_sim": 17.0,
+     "friction": 0.0,
+     "joint_names_expr": [
+      ".*_hip_yaw_joint",
+      ".*_ankle_upper_joint",
+      ".*_ankle_lower_joint"
+     ],
+     "stiffness": {
+      "l_ankle_lower_joint": 40.0,
+      "l_ankle_upper_joint": 40.0,
+      "l_hip_yaw_joint": 100.0,
+      "r_ankle_lower_joint": 40.0,
+      "r_ankle_upper_joint": 40.0,
+      "r_hip_yaw_joint": 100.0
+     },
+     "velocity_limit": null,
+     "velocity_limit_sim": 38.61,
+     "viscous_friction": 0.0
+    },
+    "rs03": {
+     "armature": 0.02,
+     "class_type": "isaaclab.actuators.actuator_pd:ImplicitActuator",
+     "damping": {
+      "l_hip_pitch_joint": 2.0,
+      "l_hip_roll_joint": 2.0,
+      "l_knee_pitch_joint": 4.0,
+      "r_hip_pitch_joint": 2.0,
+      "r_hip_roll_joint": 2.0,
+      "r_knee_pitch_joint": 4.0
+     },
+     "dynamic_friction": 0.0,
+     "effort_limit": null,
+     "effort_limit_sim": 60.0,
+     "friction": 0.0,
+     "joint_names_expr": [
+      ".*_hip_pitch_joint",
+      ".*_hip_roll_joint",
+      ".*_knee_pitch_joint"
+     ],
+     "stiffness": {
+      "l_hip_pitch_joint": 100.0,
+      "l_hip_roll_joint": 100.0,
+      "l_knee_pitch_joint": 150.0,
+      "r_hip_pitch_joint": 100.0,
+      "r_hip_roll_joint": 100.0,
+      "r_knee_pitch_joint": 150.0
+     },
+     "velocity_limit": null,
+     "velocity_limit_sim": 18.81,
+     "viscous_friction": 0.0
+    }
+   },
+   "articulation_root_prim_path": null,
+   "class_type": "isaaclab.assets.articulation.articulation:Articulation",
+   "collision_group": 0,
+   "debug_vis": false,
+   "init_state": {
+    "ang_vel": [
+     "__tuple__",
+     0.0,
+     0.0,
+     0.0
+    ],
+    "joint_pos": {
+     "l_ankle_coupler_joint_a:0": 2.722415907266139e-06,
+     "l_ankle_coupler_joint_a:1": 0.18902802871455698,
+     "l_ankle_coupler_joint_a:2": -0.00019158068886474374,
+     "l_ankle_coupler_joint_b:0": -2.5007046114752142e-06,
+     "l_ankle_coupler_joint_b:1": 0.20723293037012586,
+     "l_ankle_coupler_joint_b:2": 0.00019998798369391048,
+     "l_ankle_lower_joint": -0.22908552614940247,
+     "l_ankle_pitch_joint": 0.21999999999999997,
+     "l_ankle_roll_joint": 0.0,
+     "l_ankle_upper_joint": 0.23962121825843782,
+     "l_hip_pitch_joint": 0.13,
+     "l_hip_roll_joint": 0.0,
+     "l_hip_yaw_joint": 0.0,
+     "l_knee_coupler_joint_a": 0.3603426410055134,
+     "l_knee_joint": -0.35,
+     "l_knee_pitch_joint": -0.23648024059811287,
+     "r_ankle_coupler_joint_a:0": -2.7224158929129766e-06,
+     "r_ankle_coupler_joint_a:1": 0.18902802871456023,
+     "r_ankle_coupler_joint_a:2": 0.00019158068785266884,
+     "r_ankle_coupler_joint_b:0": 2.5007046302483214e-06,
+     "r_ankle_coupler_joint_b:1": 0.20723293037012688,
+     "r_ankle_coupler_joint_b:2": -0.00019998798519791389,
+     "r_ankle_lower_joint": 0.22908552614940247,
+     "r_ankle_pitch_joint": 0.21999999999999997,
+     "r_ankle_roll_joint": 0.0,
+     "r_ankle_upper_joint": -0.23962121825843782,
+     "r_hip_pitch_joint": -0.13,
+     "r_hip_roll_joint": 0.0,
+     "r_hip_yaw_joint": 0.0,
+     "r_knee_coupler_joint_a": 0.3603426410055134,
+     "r_knee_joint": 0.35,
+     "r_knee_pitch_joint": 0.23648024059811287
+    },
+    "joint_vel": {
+     ".*": 0.0
+    },
+    "lin_vel": [
+     "__tuple__",
+     0.0,
+     0.0,
+     0.0
+    ],
+    "pos": [
+     "__tuple__",
+     0.0,
+     0.0,
+     0.93991
+    ],
+    "rot": [
+     "__tuple__",
+     1.0,
+     0.0,
+     0.0,
+     0.0
+    ]
+   },
+   "prim_path": "{ENV_REGEX_NS}/Robot",
+   "soft_joint_pos_limit_factor": 0.9,
+   "spawn": {
+    "activate_contact_sensors": true,
+    "articulation_props": {
+     "articulation_enabled": null,
+     "enabled_self_collisions": null,
+     "fix_root_link": null,
+     "sleep_threshold": null,
+     "solver_position_iteration_count": 32,
+     "solver_velocity_iteration_count": 4,
+     "stabilization_threshold": null
+    },
+    "collision_props": null,
+    "copy_from_source": true,
+    "deformable_props": null,
+    "fixed_tendons_props": null,
+    "func": "isaaclab.sim.spawners.from_files.from_files:spawn_from_usd",
+    "joint_drive_props": null,
+    "mass_props": null,
+    "rigid_props": null,
+    "scale": null,
+    "semantic_tags": null,
+    "spatial_tendons_props": null,
+    "usd_path": "robonex-description/ver2/isaac/edu/closed_loop_mesh/robonex_edu_closed_loop_mesh.usd",
+    "variants": null,
+    "visible": true,
+    "visual_material": null,
+    "visual_material_path": "material"
+   }
+  }
+ },
+ "seed": null,
+ "sim": {
+  "create_stage_in_memory": false,
+  "device": "cuda:0",
+  "dt": 0.0025,
+  "enable_scene_query_support": false,
+  "gravity": [
+   "__tuple__",
+   0.0,
+   0.0,
+   -9.81
+  ],
+  "log_dir": null,
+  "logging_level": "WARNING",
+  "physics_material": {
+   "compliant_contact_damping": 0.0,
+   "compliant_contact_stiffness": 0.0,
+   "dynamic_friction": 0.5,
+   "friction_combine_mode": "average",
+   "func": "isaaclab.sim.spawners.materials.physics_materials:spawn_rigid_body_material",
+   "restitution": 0.0,
+   "restitution_combine_mode": "average",
+   "static_friction": 0.5
+  },
+  "physics_prim_path": "/physicsScene",
+  "physx": {
+   "bounce_threshold_velocity": 0.5,
+   "enable_ccd": false,
+   "enable_enhanced_determinism": false,
+   "enable_external_forces_every_iteration": false,
+   "enable_stabilization": false,
+   "friction_correlation_distance": 0.025,
+   "friction_offset_threshold": 0.04,
+   "gpu_collision_stack_size": 67108864,
+   "gpu_found_lost_aggregate_pairs_capacity": 33554432,
+   "gpu_found_lost_pairs_capacity": 2097152,
+   "gpu_heap_capacity": 67108864,
+   "gpu_max_num_partitions": 8,
+   "gpu_max_particle_contacts": 1048576,
+   "gpu_max_rigid_contact_count": 8388608,
+   "gpu_max_rigid_patch_count": 163840,
+   "gpu_max_soft_body_contacts": 1048576,
+   "gpu_temp_buffer_capacity": 16777216,
+   "gpu_total_aggregate_pairs_capacity": 2097152,
+   "max_position_iteration_count": 255,
+   "max_velocity_iteration_count": 255,
+   "min_position_iteration_count": 1,
+   "min_velocity_iteration_count": 0,
+   "solve_articulation_contact_last": false,
+   "solver_type": 1
+  },
+  "render": {
+   "antialiasing_mode": null,
+   "carb_settings": null,
+   "dlss_mode": null,
+   "dome_light_upper_lower_strategy": null,
+   "enable_ambient_occlusion": null,
+   "enable_direct_lighting": null,
+   "enable_dl_denoiser": null,
+   "enable_dlssg": null,
+   "enable_global_illumination": null,
+   "enable_reflections": null,
+   "enable_shadows": null,
+   "enable_translucency": null,
+   "rendering_mode": null,
+   "samples_per_pixel": null
+  },
+  "render_interval": 8,
+  "save_logs_to_file": true,
+  "use_fabric": true
+ },
+ "teleop_devices": {
+  "devices": {}
+ },
+ "terminations": {
+  "bad_joint_vel": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:unstable_joint_vel",
+   "params": {
+    "limit": 100.0
+   },
+   "time_out": false
+  },
+  "fall_down": {
+   "func": "isaaclab.envs.mdp.terminations:root_height_below_minimum",
+   "params": {
+    "minimum_height": 0.528
+   },
+   "time_out": false
+  },
+  "illegal_contact": {
+   "func": "isaaclab.envs.mdp.terminations:illegal_contact",
+   "params": {
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "illegal_contacts",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    },
+    "threshold": 1.0
+   },
+   "time_out": false
+  },
+  "invalid_contact": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:nonfinite_contact",
+   "params": {
+    "sensor_cfg": {
+     "body_ids": "slice(None, None, None)",
+     "body_names": null,
+     "fixed_tendon_ids": "slice(None, None, None)",
+     "fixed_tendon_names": null,
+     "joint_ids": "slice(None, None, None)",
+     "joint_names": null,
+     "name": "contact_forces",
+     "object_collection_ids": "slice(None, None, None)",
+     "object_collection_names": null,
+     "preserve_order": false
+    }
+   },
+   "time_out": false
+  },
+  "invalid_state": {
+   "func": "robonex_walking.tasks.manager_based.robonex_walking.mdp.rewards:invalid_state",
+   "params": {},
+   "time_out": false
+  },
+  "time_out": {
+   "func": "isaaclab.envs.mdp.terminations:time_out",
+   "params": {},
+   "time_out": true
+  }
+ },
+ "ui_window_class_type": "isaaclab.envs.ui.manager_based_rl_env_window:ManagerBasedRLEnvWindow",
+ "variant": "edu",
+ "viewer": {
+  "asset_name": null,
+  "body_name": null,
+  "cam_prim_path": "/OmniverseKit_Persp",
+  "env_index": 0,
+  "eye": [
+   "__tuple__",
+   8.0,
+   0.0,
+   5.0
+  ],
+  "lookat": [
+   "__tuple__",
+   0.0,
+   0.0,
+   0.0
+  ],
+  "origin_type": "world",
+  "resolution": [
+   "__tuple__",
+   1280,
+   720
+  ]
+ },
+ "wait_for_textures": true,
+ "xr": null
+}

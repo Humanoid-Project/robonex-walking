@@ -1,3 +1,4 @@
+import ast
 import importlib.util
 import json
 import re
@@ -8,6 +9,7 @@ from pathlib import Path
 
 TASK = Path(__file__).resolve().parents[1] / "source/robonex_walking/robonex_walking/tasks/manager_based/robonex_walking"
 DESC = Path(__file__).resolve().parents[2] / "robonex-description"
+PLAYER = Path(__file__).resolve().parents[1] / "scripts/sim_to_sim/play_v3_mujoco.py"
 HAS_V3 = (DESC / "ver3/ver3_constants.json").exists()
 
 
@@ -74,6 +76,15 @@ class V3ContractTest(unittest.TestCase):
             self.assertEqual(sum(bool(re.fullmatch(p, name)) for p in legs), 1, name)
         for name in self.v3.UPPER_JOINTS:
             self.assertFalse(any(re.fullmatch(p, name) for p in legs), name)
+
+    def test_policy_order_is_common_order_renamed_and_the_player_order(self):
+        common = __import__("robonex_common.joints", fromlist=["x"]).POLICY_JOINT_ORDER
+        renamed = tuple(self.v3.v3_name(n) for n in common)
+        node = next(n for n in ast.parse(PLAYER.read_text()).body if isinstance(n, ast.Assign)
+                    and getattr(n.targets[0], "id", None) == "ISAAC_LEG_ARTICULATION_ORDER")
+        self.assertEqual(renamed, tuple(self.constants["policy_joint_order"]))
+        self.assertEqual(renamed, ast.literal_eval(node.value))
+        self.assertEqual(set(renamed), set(self.v3.LEG_JOINTS))
 
     def test_feet_and_roll_pairs(self):
         self.assertEqual(self.v3.FEET, ("left_ankle_pitch_link", "right_ankle_pitch_link"))
