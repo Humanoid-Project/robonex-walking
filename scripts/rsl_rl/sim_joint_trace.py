@@ -26,6 +26,8 @@ parser.add_argument("--measure_steps", type=int, default=1650)
 parser.add_argument("--env_index", type=int, default=0, help="Which env's trace to write")
 parser.add_argument("--out", type=str, required=True)
 parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--cross_plant", action="store_true",
+                    help="Allow tracing on another variant of the trained robot (e.g. a ver3 legs run on ver3 full)")
 parser.add_argument("--registry_cfg", action="store_true",
                     help="Use the current task config instead of the checkpoint's params/env.yaml")
 parser.add_argument("--keep_randomization", action="store_true",
@@ -72,6 +74,7 @@ from deploy_effects import (
     apply_imu_delay_pin,
     apply_base_load_pin,
     apply_training_env_cfg,
+    check_robot_identity,
     disable_randomization,
     install_joint_obs_delay,
     install_slew_limiter,
@@ -82,6 +85,20 @@ from deploy_effects import (
 )
 from isaaclab_rl.rsl_rl import RslRlVecEnvWrapper
 from isaaclab_tasks.utils import load_cfg_from_registry, parse_env_cfg
+
+
+HIP_ROLL_LINKS = (("l_hip_roll_link", "r_hip_roll_link"), ("left_hip_roll_link", "right_hip_roll_link"))
+
+
+def trace_body_names(cfg_feet, body_names):
+    feet = list(cfg_feet)
+    missing = [n for n in feet if n not in body_names]
+    if len(feet) != 2 or missing:
+        raise SystemExit("trace needs two foot bodies, got %s (missing %s)" % (feet, missing))
+    for pair in HIP_ROLL_LINKS:
+        if all(n in body_names for n in pair):
+            return feet, list(pair)
+    raise SystemExit("no hip-roll link pair in the robot bodies; expected one of %s" % (HIP_ROLL_LINKS,))
 
 
 def sample_before_reset(unwrapped, env_index, sample):
@@ -142,6 +159,9 @@ def main():
     obs_widened = widen_joint_obs_delay(env_cfg, args_cli.obs_delay_pin)
     if obs_widened:
         print(f"[trace] joint observation delay buffer widened for the pin: {obs_widened}")
+    robot_check = check_robot_identity(parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=1), env_cfg,
+                                       args_cli.checkpoint, args_cli.cross_plant)
+    print(f"[trace] robot: {robot_check}")
     env = gym.make(args_cli.task, cfg=env_cfg)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
@@ -189,18 +209,18 @@ def main():
     # joint trace alone cannot separate them: it records the sum. Net contact force per foot
     # gives the second term directly, so the first follows by difference.
     body_names = list(asset.data.body_names)
-    foot_ids = [body_names.index(n) for n in ("l_foot", "r_foot")]
-    hip_ids = [body_names.index(n) for n in ("l_hip_roll_link", "r_hip_roll_link")]
+    feet, hips = trace_body_names(getattr(unwrapped.cfg, "feet_body_names", ("l_foot", "r_foot")), body_names)
+    foot_ids = [body_names.index(n) for n in feet]
+    hip_ids = [body_names.index(n) for n in hips]
     contact = unwrapped.scene.sensors["contact_forces"]
     contact_bodies = list(contact.body_names)
-    contact_ids = [contact_bodies.index(n) for n in ("l_foot", "r_foot")]
+    contact_ids = [contact_bodies.index(n) for n in feet]
 
     # Mirrors of the reward-side quantities that world-frame columns cannot reconstruct.
     # feet_stance_width_l2 reads the foot separation in the BASE frame; a yawing robot makes
     # the world-frame separation a different number entirely.
     from robonex_common.runtime import GAIT_PERIOD_S
     sole = torch.as_tensor(unwrapped.cfg.foot_sole_corners, dtype=torch.float32, device=unwrapped.device)
-    stance_fraction = 0.55
     # _clip, _scale and _offset may or may not carry a leading env dimension depending on
     # how the term was configured; reduce each to this one env's per-joint row.
     def _row(value, ndim):
@@ -333,6 +353,11 @@ def main():
     meta = {
         "checkpoint": os.path.abspath(args_cli.checkpoint),
         "task": args_cli.task,
+        "robot_usd": robot_check["robot_usd"],
+        "trained_robot_usd": robot_check["trained_robot_usd"],
+        "robot_identity": robot_check["robot_identity"],
+        "trained_robot_identity": robot_check["trained_robot_identity"],
+        "cross_plant": robot_check["cross_plant"],
         "seed": args_cli.seed,
         "num_envs": unwrapped.num_envs,
         "env_index": idx,

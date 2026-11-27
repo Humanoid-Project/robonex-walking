@@ -1,6 +1,7 @@
 import copy
 import math
 import pathlib
+import re
 
 import torch
 import yaml
@@ -292,6 +293,81 @@ def remap_moved_usd(env_cfg):
             print(f"[deploy_effects] saved usd_path {path} no longer exists; using {spawn.usd_path} ({note})")
             return spawn.usd_path
     raise FileNotFoundError(f"saved usd_path {path} does not exist and has no known new location")
+
+
+ROBOT_IDENTITY_PATTERN = re.compile(r"/robonex[-_]description/(ver\d+(?:-\d+)?)/isaac/([a-z]+)/")
+ROBOT_VERSION_ALIASES = {"ver2-3": "ver2"}
+TASK_BY_IDENTITY = {
+    ("ver2", "edu"): "RoboNex-Walking-V2-Edu-v0",
+    ("ver3", "full"): "RoboNex-Walking-V3-v0",
+    ("ver3", "legs"): "RoboNex-Walking-V3-Legs-v0",
+}
+
+
+def robot_identity(usd_path):
+    if not usd_path:
+        return None
+    path = str(usd_path)
+    for old, new, _ in MOVED_DESCRIPTION_PATHS:
+        path = path.replace(old, new)
+    match = ROBOT_IDENTITY_PATTERN.search(path)
+    if match is None:
+        return None
+    return ROBOT_VERSION_ALIASES.get(match.group(1), match.group(1)), match.group(2)
+
+
+def saved_robot(checkpoint):
+    path = pathlib.Path(checkpoint).resolve().parent / "params" / "env.yaml"
+    if not path.is_file():
+        return None, None
+    with path.open() as handle:
+        saved = yaml.load(handle, Loader=_SavedCfgLoader) or {}
+    spawn = ((saved.get("scene") or {}).get("robot") or {}).get("spawn") or {}
+    action = (saved.get("actions") or {}).get("joint_pos") or {}
+    joints = action.get("joint_names")
+    return spawn.get("usd_path"), None if joints is None else [str(n) for n in joints]
+
+
+def robot_identity_issues(live_usd, live_joints, trained_usd, trained_joints, cross_plant=False):
+    live = robot_identity(live_usd)
+    trained = robot_identity(trained_usd)
+    refusals = []
+    warnings = []
+    if trained is None:
+        warnings.append("trained robot unknown (usd_path %r); robot identity not checked" % (trained_usd,))
+    elif live is None:
+        warnings.append("evaluated robot unknown (usd_path %r); robot identity not checked" % (live_usd,))
+    elif live != trained:
+        suggested = TASK_BY_IDENTITY.get(trained)
+        hint = "use --task %s" % suggested if suggested else "no task builds the trained robot"
+        if live[0].split("-")[0] != trained[0].split("-")[0]:
+            refusals.append("checkpoint trained on %s/%s, task builds %s/%s; %s" % (*trained, *live, hint))
+        elif not cross_plant:
+            refusals.append("checkpoint trained on %s/%s, task builds %s/%s; %s, or pass --cross_plant to evaluate "
+                            "on the other plant on purpose" % (*trained, *live, hint))
+    if live_joints is not None and trained_joints is not None and set(live_joints) != set(trained_joints):
+        refusals.append("action joints differ: trained %s, task %s"
+                        % (sorted(set(trained_joints) - set(live_joints)), sorted(set(live_joints) - set(trained_joints))))
+    return live, trained, refusals, warnings
+
+
+def check_robot_identity(registry_cfg, env_cfg, checkpoint, cross_plant=False):
+    trained_usd, trained_joints = saved_robot(checkpoint)
+    live_joints = getattr(getattr(getattr(registry_cfg, "actions", None), "joint_pos", None), "joint_names", None)
+    live_joints = None if live_joints is None else [str(n) for n in live_joints]
+    live, trained, refusals, warnings = robot_identity_issues(
+        registry_cfg.scene.robot.spawn.usd_path, live_joints, trained_usd, trained_joints, cross_plant)
+    for line in warnings:
+        print("[robot identity] %s" % line, flush=True)
+    if refusals:
+        raise SystemExit("robot identity: " + "; ".join(refusals))
+    return {
+        "robot_usd": None if env_cfg.scene.robot.spawn.usd_path is None else str(env_cfg.scene.robot.spawn.usd_path),
+        "trained_robot_usd": None if trained_usd is None else str(trained_usd),
+        "robot_identity": None if live is None else list(live),
+        "trained_robot_identity": None if trained is None else list(trained),
+        "cross_plant": bool(cross_plant),
+    }
 
 
 def disable_randomization(env_cfg, keep=()):

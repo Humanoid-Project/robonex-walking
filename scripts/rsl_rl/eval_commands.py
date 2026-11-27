@@ -19,6 +19,8 @@ parser.add_argument("--cells", type=str, default=None)
 parser.add_argument("--seed", type=int, default=0, help="Environment seed; keep fixed across compared checkpoints")
 parser.add_argument("--strict", action="store_true",
                     help="Exit instead of evaluating when the live env disagrees with the checkpoint's params/env.yaml")
+parser.add_argument("--cross_plant", action="store_true",
+                    help="Allow evaluating on another variant of the trained robot (e.g. a ver3 legs run on ver3 full)")
 parser.add_argument("--training_cfg", action="store_true",
                     help="Build the env from the checkpoint's params/env.yaml instead of the current code")
 parser.add_argument("--slew_limit", action="store_true",
@@ -97,6 +99,7 @@ from deploy_effects import (
     apply_push_interval,
     apply_base_load_pin,
     apply_training_env_cfg,
+    check_robot_identity,
     pin_floor_friction,
     effective_action_config,
     install_joint_obs_delay,
@@ -637,6 +640,9 @@ def main():
     obs_widened = widen_joint_obs_delay(env_cfg, args_cli.obs_delay_pin)
     if obs_widened:
         print(f"[eval] joint observation delay buffer widened for the pin: {obs_widened}")
+    robot_check = check_robot_identity(parse_env_cfg(args_cli.task, device=args_cli.device, num_envs=1), env_cfg,
+                                       args_cli.checkpoint, args_cli.cross_plant)
+    print(f"[eval] robot: {robot_check}")
     env = gym.make(args_cli.task, cfg=env_cfg)
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
     runner = OnPolicyRunner(env, agent_cfg.to_dict(), log_dir=None, device=agent_cfg.device)
@@ -738,6 +744,12 @@ def main():
     meta = {
         "checkpoint": checkpoint,
         "checkpoint_sha256_16": digest,
+        "task": args_cli.task,
+        "robot_usd": robot_check["robot_usd"],
+        "trained_robot_usd": robot_check["trained_robot_usd"],
+        "robot_identity": robot_check["robot_identity"],
+        "trained_robot_identity": robot_check["trained_robot_identity"],
+        "cross_plant": robot_check["cross_plant"],
         "num_envs": unwrapped.num_envs,
         "warmup_steps": args_cli.warmup_steps,
         "measure_steps": args_cli.measure_steps,
