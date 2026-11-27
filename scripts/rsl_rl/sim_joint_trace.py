@@ -53,6 +53,8 @@ parser.add_argument("--obs_delay", type=int, default=0,
                     help="Delay joint_pos_rel and joint_vel_rel in the policy observation by N steps")
 parser.add_argument("--obs_delay_pin", type=int, default=-1,
                     help="For a policy trained with a random joint observation delay: fix that delay at N steps for every env")
+parser.add_argument("--upper_joints", action="store_true",
+                    help="Also write <out stem>.upper.csv with every actuated joint outside the action term (arms, neck)")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 args_cli.headless = True
@@ -99,6 +101,24 @@ def trace_body_names(cfg_feet, body_names):
         if all(n in body_names for n in pair):
             return feet, list(pair)
     raise SystemExit("no hip-roll link pair in the robot bodies; expected one of %s" % (HIP_ROLL_LINKS,))
+
+
+def upper_trace_joints(joint_names, action_joint_names, actuated_joint_names):
+    action = set(action_joint_names)
+    actuated = set(actuated_joint_names)
+    return [n for n in joint_names if n not in action and n in actuated]
+
+
+def upper_trace_header(names):
+    header = ["t_s", "step"]
+    for name in names:
+        short = name.replace("_joint", "")
+        header += [f"{short}.pos", f"{short}.vel", f"{short}.target", f"{short}.torque"]
+    return header
+
+
+def upper_trace_path(out):
+    return os.path.splitext(out)[0] + ".upper.csv"
 
 
 def sample_before_reset(unwrapped, env_index, sample):
@@ -203,6 +223,14 @@ def main():
     joint_ids = action_term._joint_ids
     if isinstance(joint_ids, slice):
         joint_ids = list(range(len(joint_names)))
+    upper_names = []
+    if args_cli.upper_joints:
+        actuated = [n for actuator in asset.actuators.values() for n in actuator.joint_names]
+        upper_names = upper_trace_joints(list(asset.joint_names), joint_names, actuated)
+        if not upper_names:
+            raise SystemExit("--upper_joints: the robot has no actuated joint outside the action term (legs variant?)")
+        print(f"[trace] upper joints: {upper_names}")
+    upper_ids = [list(asset.joint_names).index(n) for n in upper_names]
 
     # Bodies and the contact sensor, for the lateral-balance decomposition.
     # The stance hip_roll moment is CoP_offset * F_vertical + F_lateral * lever_arm, and the
@@ -256,6 +284,7 @@ def main():
     idx = args_cli.env_index
     dt = float(unwrapped.step_dt)
     rows = []
+    upper_rows = []
     delay_states = []
 
     def sample_state():
@@ -277,6 +306,9 @@ def main():
             "vel": asset.data.joint_vel[idx, joint_ids].clone(),
             "tau": asset.data.applied_torque[idx, joint_ids].clone(),
             "tgt": asset.data.joint_pos_target[idx, joint_ids].clone(),
+            "upper": torch.stack((asset.data.joint_pos[idx, upper_ids], asset.data.joint_vel[idx, upper_ids],
+                                  asset.data.joint_pos_target[idx, upper_ids],
+                                  asset.data.applied_torque[idx, upper_ids])).clone() if upper_ids else None,
         }
 
     terminal = sample_before_reset(unwrapped, idx, sample_state)
@@ -347,6 +379,11 @@ def main():
                         round(float(tau[j]), 5), round(float(tgt[j]), 5),
                         round(float(raw[j]), 5), round(float(excess[j]), 6)]
             rows.append(row)
+            if upper_ids:
+                upper_row = [round(n * dt, 4), n]
+                for j in range(len(upper_ids)):
+                    upper_row += [round(float(v), 5) for v in state["upper"][:, j]]
+                upper_rows.append(upper_row)
 
     out = os.path.abspath(args_cli.out)
     os.makedirs(os.path.dirname(out), exist_ok=True)
@@ -383,6 +420,8 @@ def main():
         "imu_delay": imu_delay,
         "actuation_delay_env_k": None if actuation_delay["substeps"] is None
         else int(action_term._delay_substeps[idx]),
+        "upper_joints": upper_names,
+        "upper_csv": upper_trace_path(out) if upper_names else None,
     }
     meta_path = out + ".meta.json"
     with open(meta_path + ".partial", "w", encoding="utf-8") as handle:
@@ -394,6 +433,12 @@ def main():
         writer.writerow(header)
         writer.writerows(rows)
     print(f"wrote {len(rows)} rows ({len(rows) * dt:.1f} s at {1/dt:.0f} Hz) to {out}")
+    if upper_names:
+        with open(upper_trace_path(out), "w", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(upper_trace_header(upper_names))
+            writer.writerows(upper_rows)
+        print(f"wrote {len(upper_rows)} rows of {len(upper_names)} upper joints to {upper_trace_path(out)}")
     env.close()
 
 
