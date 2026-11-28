@@ -1,6 +1,8 @@
 import json
 import math
 
+from robonex_common.joints import POLICY_JOINT_ORDER as V2_POLICY_JOINT_ORDER
+from robonex_common.joints import VER3_POLICY_JOINT_ORDER
 from robonex_common.paths import DESCRIPTION_REPO_NAMES, repo_file
 
 from . import robot_contract_v2 as v2
@@ -52,6 +54,17 @@ def v3_name(name):
 
 
 LEG_JOINTS = tuple(v3_name(n) for n in v2.LEG_JOINTS)
+LEG_ARTICULATION_ORDER = tuple(CONSTANTS["policy_joint_order"])
+if set(LEG_JOINTS) != set(VER3_POLICY_JOINT_ORDER) or len(LEG_JOINTS) != len(VER3_POLICY_JOINT_ORDER):
+    raise RuntimeError(f"ver3 leg joints {LEG_JOINTS} are not robonex-common's ver3 policy joints {VER3_POLICY_JOINT_ORDER}")
+if tuple(v3_name(n) for n in V2_POLICY_JOINT_ORDER) != VER3_POLICY_JOINT_ORDER:
+    raise RuntimeError("the ver2 -> ver3 leg name map disagrees with robonex-common's ver3 names by motor id")
+if LEG_ARTICULATION_ORDER != VER3_POLICY_JOINT_ORDER:
+    diff = [(i, a, e) for i, (a, e) in enumerate(zip(LEG_ARTICULATION_ORDER, VER3_POLICY_JOINT_ORDER)) if a != e]
+    raise RuntimeError(
+        f"ver3 leg articulation order {LEG_ARTICULATION_ORDER} ({CONSTANTS_PATH} policy_joint_order) differs from "
+        f"robonex-common VER3_POLICY_JOINT_ORDER {VER3_POLICY_JOINT_ORDER} (index, got, expected: "
+        f"{diff or 'lengths differ'})")
 V2_TO_V3 = {n: v3_name(n) for n in v2.LEG_JOINTS}
 V2_TO_V3.update(BODY_MAP)
 V2_TO_V3.update({n: v3_name(n) for n in ("l_hip_roll_link", "r_hip_roll_link", "l_knee_link", "r_knee_link")})

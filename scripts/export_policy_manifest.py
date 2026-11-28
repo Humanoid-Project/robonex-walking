@@ -4,9 +4,9 @@ import os
 import sys
 from pathlib import Path
 
-from robonex_common.joints import DEFAULT_JOINT_POS, POLICY_JOINT_ORDER
+from robonex_common.joints import DEFAULT_JOINT_POS, POLICY_JOINT_ORDER, VER3_POLICY_JOINT_ORDER
 from robonex_common.limits import RUNNER_ACTION_CLIP, action_normalization
-from robonex_common.models import robot_model
+from robonex_common.models import VER3_MODELS, robot_model
 from robonex_common.runtime import (
     ACTION_SIZE,
     OBSERVATION_FRAME_SIZE,
@@ -23,6 +23,9 @@ from robonex_common.policy import (
 TASKS = {"ver2_edu": "RoboNex-Walking-V2-Edu-v0"}
 POSE_TASKS = {("ver2_edu", "lean25"): "RoboNex-Walking-V2-Edu-Lean25-v0"}
 DESCRIPTION_MODELS = {"ver2_edu": "ver2/mujoco/robot/edu/scene.xml"}
+VER3_TASKS = {"full": "RoboNex-Walking-V3-v0", "legs": "RoboNex-Walking-V3-Legs-v0"}
+VER3_DESCRIPTION_MODELS = {"full": "ver3/mujoco/robot/full/scene.xml", "legs": "ver3/mujoco/robot/legs/scene.xml"}
+ROBOT_MODEL_CHOICES = tuple(sorted({*TASKS, *VER3_MODELS}))
 SCENE_BY_TRAINED_MODEL = {"/ver2-3/": "ver2/mujoco/robot/edu/scene.xml", "/ver2/": "ver2/mujoco/robot/edu/scene.xml"}
 RETIRED_TRAINED_MODELS = ("/ver2-2/",)
 CURRENT_VER2_FROM_RUN_DATE = "2026-11-02"
@@ -78,6 +81,16 @@ def description_model_warning(requested, trained):
     if requested is None or trained is None or requested.split("/")[0] == trained.split("/")[0]:
         return None
     return f"WARNING: --description-model {requested}, but the checkpoint was trained on {trained}"
+
+
+def description_model_refusal(requested, robot, trained):
+    if requested is None:
+        return None
+    if (requested.split("/")[0] == "ver3") != (robot in VER3_MODELS):
+        return f"--description-model {requested} is not a model of robot {robot}; a ver3 policy needs a ver3 scene and the reverse"
+    if robot in VER3_MODELS and requested != trained:
+        return f"--description-model {requested}, but the checkpoint was trained on {trained}"
+    return None
 
 RECEIPT_VERSION = 1
 
@@ -169,15 +182,39 @@ def saved_robot_identity(saved_env):
     return effects.robot_identity(usd_path)
 
 
-def ver3_export_refusal(saved_env):
+def saved_ver3_variant(saved_env):
     identity = saved_robot_identity(saved_env)
     if identity is None or identity[0] != "ver3":
         return None
-    return (f"{saved_env}: trained on {identity[0]}/{identity[1]}; ver3 export needs a ver3 robot profile in "
-            "robonex-common (planned 2.6.0)")
+    if identity[1] not in VER3_TASKS:
+        raise SystemExit(f"{saved_env}: trained on ver3/{identity[1]}, which no export task covers ({', '.join(VER3_TASKS)})")
+    return identity[1]
 
 
-def saved_action_normalization(saved_env):
+def check_ver3_joint_order(saved_env, variant, description_root):
+    record_path = saved_env.with_name("joint_order.json")
+    if record_path.is_file():
+        import json
+
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        if tuple(record["action_joint_names"]) != VER3_POLICY_JOINT_ORDER:
+            raise SystemExit(f"{record_path}: action joint order {record['action_joint_names']} differs from "
+                             f"robonex-common VER3_POLICY_JOINT_ORDER {list(VER3_POLICY_JOINT_ORDER)}")
+        if record.get("task") not in (None, VER3_TASKS[variant]):
+            raise SystemExit(f"{record_path}: task {record['task']}, but the run's robot is ver3/{variant} "
+                             f"({VER3_TASKS[variant]})")
+        return str(record_path)
+    import json
+
+    constants = Path(description_root) / "ver3" / "ver3_constants.json"
+    order = tuple(json.loads(constants.read_text(encoding="utf-8"))["policy_joint_order"])
+    if order != VER3_POLICY_JOINT_ORDER:
+        raise SystemExit(f"{constants}: policy_joint_order {list(order)} differs from robonex-common "
+                         f"VER3_POLICY_JOINT_ORDER {list(VER3_POLICY_JOINT_ORDER)}")
+    return f"{constants} policy_joint_order (the run saved no params/joint_order.json)"
+
+
+def saved_action_normalization(saved_env, order=POLICY_JOINT_ORDER):
     import yaml
 
     class Loader(yaml.SafeLoader):
@@ -186,12 +223,12 @@ def saved_action_normalization(saved_env):
     Loader.add_constructor("tag:yaml.org,2002:python/tuple", lambda loader, node: tuple(loader.construct_sequence(node)))
     Loader.add_multi_constructor("", lambda loader, suffix, node: None)
     action = yaml.load(saved_env.read_text(), Loader=Loader)["actions"]["joint_pos"]
-    missing = [n for n in POLICY_JOINT_ORDER if n not in action["offset"] or n not in action["scale"] or n not in action["clip"]]
+    missing = [n for n in order if n not in action["offset"] or n not in action["scale"] or n not in action["clip"]]
     if missing:
         raise SystemExit(f"{saved_env}: action normalisation lacks {missing}")
-    return ({n: float(action["offset"][n]) for n in POLICY_JOINT_ORDER},
-            {n: float(action["scale"][n]) for n in POLICY_JOINT_ORDER},
-            {n: tuple(float(v) for v in action["clip"][n]) for n in POLICY_JOINT_ORDER})
+    return ({n: float(action["offset"][n]) for n in order},
+            {n: float(action["scale"][n]) for n in order},
+            {n: tuple(float(v) for v in action["clip"][n]) for n in order})
 
 
 def saved_action_block(saved_env):
@@ -294,19 +331,20 @@ def check_onnx_width(policy, observation_size):
         )
 
 
-def infer_robot_model(saved_env, offsets, scales, clips, tolerance=1.0e-9):
+def infer_robot_model(saved_env, offsets, scales, clips, tolerance=1.0e-9, models=None):
     from robonex_common.models import ACTION_POSES, ROBOT_MODELS
 
+    models = ROBOT_MODELS if models is None else models
     roll = saved_roll(saved_action_block(saved_env))
     matches = []
-    for name, pose in [(n, p) for n in ROBOT_MODELS for p in ("home", *sorted(ACTION_POSES))]:
-        profile = ROBOT_MODELS[name]
+    for name, pose in [(n, p) for n in models for p in ("home", *sorted(ACTION_POSES))]:
+        profile = models[name]
         want_offsets, want_scales, want_clips = action_normalization(0.01, model=name, pose=pose)
         same_actions = all(
             abs(offsets[j] - want_offsets[j]) <= tolerance
             and abs(scales[j] - want_scales[j]) <= tolerance
             and all(abs(a - b) <= tolerance for a, b in zip(clips[j], want_clips[j]))
-            for j in POLICY_JOINT_ORDER
+            for j in profile.policy_joint_order
         )
         want_roll = (0.0, (), ()) if profile.foot_roll is None else (
             profile.foot_roll.limit, tuple(profile.foot_roll.coeffs), tuple(tuple(p) for p in profile.foot_roll.pairs))
@@ -315,7 +353,7 @@ def infer_robot_model(saved_env, offsets, scales, clips, tolerance=1.0e-9):
     if len(matches) != 1:
         raise SystemExit(
             f"{saved_env}: the saved action normalisation and foot-roll clip match {len(matches)} robonex-common robot "
-            f"models ({', '.join(sorted(ROBOT_MODELS))}); exactly one must match. This checkpoint cannot be deployed "
+            f"models ({', '.join(sorted(models))}); exactly one must match. This checkpoint cannot be deployed "
             "under the current contract."
         )
     return matches[0]
@@ -353,7 +391,7 @@ def main():
              "instead of robonex-common (needed for the Ver.2 tasks, whose limits and default pose differ)",
     )
     parser.add_argument("--task", default=None, help="Default: the robot model's training task")
-    parser.add_argument("--robot-model", default=None, choices=tuple(sorted(TASKS)),
+    parser.add_argument("--robot-model", default=None, choices=ROBOT_MODEL_CHOICES,
                         help="Robot profile in robonex-common. It is inferred from the checkpoint's saved "
                              "params/env.yaml and this must agree")
     args = parser.parse_args()
@@ -393,20 +431,29 @@ def main():
     saved_env = args.checkpoint.expanduser().resolve().parent / "params" / "env.yaml"
     if not saved_env.is_file():
         raise SystemExit(f"{saved_env} is missing; the export cannot be checked against the run")
-    refusal = ver3_export_refusal(saved_env)
-    if refusal is not None:
-        raise SystemExit(refusal)
-    offsets, scales, clips = saved_action_normalization(saved_env)
-    inferred, pose = infer_robot_model(saved_env, offsets, scales, clips)
+    ver3_variant = saved_ver3_variant(saved_env)
+    if ver3_variant is None:
+        offsets, scales, clips = saved_action_normalization(saved_env)
+        inferred, pose = infer_robot_model(saved_env, offsets, scales, clips)
+    else:
+        print(f"ver3 policy joint order: {check_ver3_joint_order(saved_env, ver3_variant, description_root)}")
+        names = saved_action_block(saved_env).get("joint_names")
+        if names is None or set(names) != set(VER3_POLICY_JOINT_ORDER):
+            raise SystemExit(f"{saved_env}: action joints {names} are not the ver3 policy joints {list(VER3_POLICY_JOINT_ORDER)}")
+        offsets, scales, clips = saved_action_normalization(saved_env, VER3_POLICY_JOINT_ORDER)
+        inferred, pose = infer_robot_model(saved_env, offsets, scales, clips, models=VER3_MODELS)
     if saved_action_pose(saved_env) != pose:
         raise SystemExit(f"{saved_env}: action_pose {saved_action_pose(saved_env)!r}, but its offsets match pose {pose!r}")
     if args.robot_model is not None and args.robot_model != inferred:
         raise SystemExit(f"--robot-model {args.robot_model}, but the checkpoint was trained as {inferred}")
     args.robot_model = inferred
     print(f"robot model: {inferred}, action pose: {pose} (inferred from {saved_env})")
-    trained = trained_description_model(saved_env)
+    trained = trained_description_model(saved_env) if ver3_variant is None else VER3_DESCRIPTION_MODELS[ver3_variant]
     if trained is None and args.description_model is None:
         raise SystemExit(f"{saved_env} names no known robonex-description model; pass --description-model explicitly")
+    refusal = description_model_refusal(args.description_model, args.robot_model, trained)
+    if refusal is not None:
+        raise SystemExit(refusal)
     warning = description_model_warning(args.description_model, trained)
     if warning is not None:
         print(warning, file=sys.stderr)
@@ -415,11 +462,18 @@ def main():
         print(f"description model: {trained} (the model the checkpoint was trained on)")
     args.description_model = args.description_model or DESCRIPTION_MODELS[args.robot_model]
     description_sha256 = mujoco_bundle_sha256(description_root, args.description_model)
-    if args.description_model == trained:
+    if args.description_model == trained and ver3_variant is None:
         new_pose = abs(DEFAULT_JOINT_POS["l_knee_pitch_joint"] - CURRENT_POSE_KNEE_CRANK) < 1e-12
         check_description_bundle(saved_env, description_sha256, previous=False if new_pose else None)
-    pose_task = TASKS[args.robot_model] if pose == "home" else POSE_TASKS[(args.robot_model, pose)]
-    if args.task is not None and args.task != pose_task and (pose != "home" or args.task in POSE_TASKS.values()):
+    if ver3_variant is not None:
+        if pose != "home":
+            raise SystemExit(f"{saved_env}: ver3 action pose {pose!r} has no training task; only home is exported")
+        pose_task = VER3_TASKS[ver3_variant]
+    else:
+        pose_task = TASKS[args.robot_model] if pose == "home" else POSE_TASKS[(args.robot_model, pose)]
+    if args.task is not None and args.task != pose_task and (
+            pose != "home" or args.task in POSE_TASKS.values() or ver3_variant is not None
+            or args.task in VER3_TASKS.values()):
         raise SystemExit(f"--task {args.task}, but the checkpoint was trained with action pose {pose!r} ({pose_task})")
     args.task = args.task or pose_task
     history_length = saved_policy_history(saved_env)
@@ -427,7 +481,9 @@ def main():
     check_onnx_width(policy, observation_size)
     print(f"observation history: {history_length} (from {saved_env}), observation_size {observation_size}")
 
-    roll = robot_model(args.robot_model).foot_roll
+    profile = robot_model(args.robot_model)
+    joint_order = profile.policy_joint_order
+    roll = profile.foot_roll
     roll_fields = dict(
         robot_model=args.robot_model,
         foot_roll_limit=roll.limit,
@@ -444,13 +500,13 @@ def main():
         common_sha256=python_source_sha256(common_root, ("src/robonex_common",)),
         training_sha256=python_source_sha256(training_root, ("source", "scripts")),
         description_model=args.description_model,
-        joint_order=POLICY_JOINT_ORDER,
+        joint_order=joint_order,
         observation_terms=tuple(
             f"{name}:{size}x{history_length}" for name, size in OBSERVATION_TERM_SIZES
         ),
-        action_offsets=tuple(offsets[name] for name in POLICY_JOINT_ORDER),
-        action_scales=tuple(scales[name] for name in POLICY_JOINT_ORDER),
-        target_clips=tuple(clips[name] for name in POLICY_JOINT_ORDER),
+        action_offsets=tuple(offsets[name] for name in joint_order),
+        action_scales=tuple(scales[name] for name in joint_order),
+        target_clips=tuple(clips[name] for name in joint_order),
         runner_action_clip=RUNNER_ACTION_CLIP,
         observation_size=observation_size,
         action_size=ACTION_SIZE,
